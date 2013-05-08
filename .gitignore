@@ -1,1 +1,3 @@
 f280x_common/lib/driverlib.lib
+*.obj
+*.pp

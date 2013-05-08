@@ -552,9 +552,19 @@ void ADC_enablePwmSocBSeq(ADC_Handle adcHandle);
 void ADC_enableSeq1Int(ADC_Handle adcHandle);
 
 
-//! \brief     Enables the SEQ1 interrupt
+//! \brief     Enables the SEQ2 interrupt
 //! \param[in] adcHandle  The analog-to-digital converter (ADC) object handle
 void ADC_enableSeq2Int(ADC_Handle adcHandle);
+
+
+//! \brief     Enables the SEQ1
+//! \param[in] adcHandle  The analog-to-digital converter (ADC) object handle
+void ADC_enableSeq1(ADC_Handle adcHandle);
+
+
+//! \brief     Enables the SEQ2
+//! \param[in] adcHandle  The analog-to-digital converter (ADC) object handle
+void ADC_enableSeq2(ADC_Handle adcHandle);
 
 
 //! \brief     Initializes the analog-to-digital converter (ADC) object handle
@@ -642,7 +652,7 @@ void ADC_setSequenceMode(ADC_Handle adcHandle, const ADC_SeqMode_e seqMode);
 //! \brief     Sets the sequence run mode: continuous or start-stop
 //! \param[in] adcHandle   The analog-to-digital converter (ADC) object handle
 //! \param[in] runMode     The sequence run mode
-void ADC_setSequenceRunMode(ADC_Handle adcHandle, const ADC_SeqMode_e seqMode);
+void ADC_setSequenceRunMode(ADC_Handle adcHandle, const ADC_SeqRun_e seqMode);
 
 
 //! \brief     Sets the acquisition window size

@@ -205,6 +205,29 @@ void ADC_enableSeq2Int(ADC_Handle adcHandle)
 } // end of ADC_enableSeq2Int() function
 
 
+void ADC_enableSeq1(ADC_Handle adcHandle)
+{
+    ADC_Obj *adc = (ADC_Obj *)adcHandle;
+
+
+    // set the bits
+    adc->ADCTRL2 |= ADC_ADCTRL2_SOC_SEQ1_BITS;
+
+    return;
+} // end of ADC_enableSeq1() function
+
+
+void ADC_enableSeq2(ADC_Handle adcHandle)
+{
+    ADC_Obj *adc = (ADC_Obj *)adcHandle;
+
+
+    // set the bits
+    adc->ADCTRL2 |= ADC_ADCTRL2_SOC_SEQ2_BITS;
+
+    return;
+} // end of ADC_enableSeq2() function
+
 // current sampled last
 ADC_Handle ADC_init(void *pMemory, const size_t numBytes)
 {
