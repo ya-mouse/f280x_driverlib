@@ -279,6 +279,9 @@ void FLASH_setStandbyWaitCount(FLASH_Handle flashHandle, const uint16_t count)
 } // end of FLASH_setStandbyWaitCount() function
 
 
+/* Wait-States, sprs230n.pdf, Table 6-47 */
+
+
 #pragma CODE_SECTION(FLASH_setup, "ramfuncs");
 void FLASH_setup(FLASH_Handle flashHandle)
 {
@@ -323,16 +326,16 @@ void FLASH_setup(FLASH_Handle flashHandle)
 	//   FlashRegs.FBANKWAIT.bit.PAGEWAIT = 2;
 
 	//Set the Waitstate for the OTP
-	FLASH_setOtpWaitStates(flashHandle, FLASH_NumOtpWaitStates_2);
-	//   FlashRegs.FOTPWAIT.bit.OTPWAIT = 2;
+	FLASH_setOtpWaitStates(flashHandle, FLASH_NumOtpWaitStates_3);
+	//   FlashRegs.FOTPWAIT.bit.OTPWAIT = 3;
     #elif (CPU_FRQ_50MHZ)
     //Set the Random Waitstate for the Flash
-    FLASH_setNumRandomReadWaitStates(flashHandle, FLASH_NumRandomWaitStates_2);
-//   FlashRegs.FBANKWAIT.bit.RANDWAIT = 2;
+    FLASH_setNumRandomReadWaitStates(flashHandle, FLASH_NumRandomWaitStates_1);
+//   FlashRegs.FBANKWAIT.bit.RANDWAIT = 1;
 
     //Set the Paged Waitstate for the Flash
-    FLASH_setNumPagedReadWaitStates(flashHandle, FLASH_NumPagedWaitStates_2);
-//   FlashRegs.FBANKWAIT.bit.PAGEWAIT = 2;
+    FLASH_setNumPagedReadWaitStates(flashHandle, FLASH_NumPagedWaitStates_1);
+//   FlashRegs.FBANKWAIT.bit.PAGEWAIT = 1;
 
     //Set the Waitstate for the OTP
     FLASH_setOtpWaitStates(flashHandle, FLASH_NumOtpWaitStates_2);
