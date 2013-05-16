@@ -1,3 +1,4 @@
 f280x_common/lib/driverlib.lib
+f280x_common/project/Debug
 *.obj
 *.pp
