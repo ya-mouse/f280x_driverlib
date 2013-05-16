@@ -124,7 +124,7 @@ SECTIONS
    .econst          : > DRAMH0,    PAGE = 1      
    .esysmem         : > RAMM1,     PAGE = 1
 
-   IQmath           : >  PRAMH0 | PRAMH1,   PAGE = 0
+   IQmath           : >  PRAMH0,   PAGE = 0
    IQmathTables     : >  BOOTROM, type = NOLOAD, PAGE = 0
 
      
