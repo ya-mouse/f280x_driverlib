@@ -263,7 +263,7 @@ typedef enum
     ADC_SuspendMode_0=(0 << 12),     //!< Denotes suspend mode 0
     ADC_SuspendMode_1=(1 << 12),     //!< Denotes suspend mode 1
     ADC_SuspendMode_2=(2 << 12),     //!< Denotes suspend mode 2
-    ADC_SuspendMode_3=(3 << 12),     //!< Denotes suspend mode 3
+    ADC_SuspendMode_3=(3 << 12)      //!< Denotes suspend mode 3
 } ADC_SuspendMode_e;
 
 

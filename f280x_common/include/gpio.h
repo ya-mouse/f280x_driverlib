@@ -201,7 +201,7 @@ typedef enum
   GPIO_34_Mode_GeneralPurpose=0,   //!< Denotes a general purpose function
   GPIO_34_Mode_Rsvd_1,             //!< Denotes a reserved function
   GPIO_34_Mode_Rsvd_2,             //!< Denotes a reserved function
-  GPIO_34_Mode_Rsvd_3,             //!< Denotes a reserved function
+  GPIO_34_Mode_Rsvd_3              //!< Denotes a reserved function
 } GPIO_Mode_e;
 
 

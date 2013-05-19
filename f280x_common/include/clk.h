@@ -231,7 +231,7 @@ typedef enum
     CLK_PllDiv_OscClk_by_7=(7 << 0),    //!< Denotes DIV value = OSCCLK*7
     CLK_PllDiv_OscClk_by_8=(8 << 0),    //!< Denotes DIV value = OSCCLK*8
     CLK_PllDiv_OscClk_by_9=(9 << 0),    //!< Denotes DIV value = OSCCLK*9
-    CLK_PllDiv_OscClk_by_10=(10 << 0),  //!< Denotes DIV value = OSCCLK*10
+    CLK_PllDiv_OscClk_by_10=(10 << 0)   //!< Denotes DIV value = OSCCLK*10
 } CLK_PllDiv_e;
 
 

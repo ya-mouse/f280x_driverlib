@@ -522,8 +522,7 @@ typedef enum
     PIE_InterruptSource_ECAN0INTA = (1 << 4),      //!< ECAN0 A RX Interrupt
     PIE_InterruptSource_ECAN1INTA = (1 << 5),      //!< ECAN1 A TX Interrupt
     PIE_InterruptSource_ECAN0INTB = (1 << 6),      //!< ECAN0 B RX Interrupt
-    PIE_InterruptSource_ECAN1INTB = (1 << 7),      //!< ECAN1 B TX Interrupt
-    
+    PIE_InterruptSource_ECAN1INTB = (1 << 7)       //!< ECAN1 B TX Interrupt
 } PIE_InterruptSource_e;
 
 
