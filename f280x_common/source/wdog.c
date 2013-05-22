@@ -215,4 +215,20 @@ void WDOG_setPreScaler(WDOG_Handle wdogHandle, const WDOG_PreScaler_e preScaler)
     return;
 } // end of WDOG_setPreScaler() function
 
+
+void WDOG_reset(WDOG_Handle wdogHandle)
+{
+    WDOG_Obj *wdog = (WDOG_Obj *)wdogHandle;
+
+    ENABLE_PROTECTED_REGISTER_WRITE_MODE;
+
+    // Set WDOG mode to "reset mode"
+    wdog->SCSR &= (~WDOG_SCSR_WDENINT_BITS);
+
+    // Wrong WDOG key causes immediate reset
+    wdog->WDKEY = 0x0;
+
+    // never get here
+} // end of WDOG_reset() function
+
 // end of file

@@ -202,6 +202,11 @@ void WDOG_setCount(WDOG_Handle wdogHandle,const uint8_t count);
 void WDOG_setPreScaler(WDOG_Handle wdogHandle,const WDOG_PreScaler_e preScaler);
 
 
+//! \brief     Immediate MCU reset via WDOG service
+//! \param[in] wdogHandle  The watchdog (WDOG) timer object handle
+void WDOG_reset(WDOG_Handle wdogHandle);
+
+
 #ifdef __cplusplus
 }
 #endif // extern "C"
