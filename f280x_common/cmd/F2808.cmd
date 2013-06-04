@@ -136,6 +136,7 @@ SECTIONS
    /* Allocate IQ math areas: */
    IQmath              : > FLASHC      PAGE = 0                  /* Math Code */
    IQmathTables        : > ROM         PAGE = 0, TYPE = NOLOAD   /* Math Tables In ROM */
+   IQmathTablesRam     : > RAML0,    PAGE = 1
 
    /* .reset is a standard section used by the compiler.  It contains the */ 
    /* the address of the start of _c_int00 for C Code.   /*

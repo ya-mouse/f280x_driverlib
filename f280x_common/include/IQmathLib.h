@@ -1,8 +1,10 @@
+// TI File $Revision: /main/7 $
+// Checkin $Date: July 29, 2011   11:03:53 $
 //###########################################################################
 //
-// FILE:	IQmathLib.h
+// FILE:    IQmathLib.h
 //
-// TITLE:	IQ Math library functions definitions.
+// TITLE:   IQ Math library functions definitions.
 //
 //###########################################################################
 //
@@ -19,14 +21,75 @@
 //  1.4b| 18 Jun 2002 | A. T. | Fixed bug with _IQtoIQN() and _IQNtoIQ()
 //      |             |       | operations.
 // -----|-------------|-------|----------------------------------------------
-//  1.4d| 30 Mar 2003 | DA/SD | 1. Added macro parameters in parentheses 
+//  1.4d| 30 Mar 2003 | DA/SD | 1. Added macro parameters in parentheses
 //      |             |       |    in number of places where it matters
-//      |             |       | 2. Added macro definition to include header 
-//      |             |       |    file multiple times in the program.     
+//      |             |       | 2. Added macro definition to include header
+//      |             |       |    file multiple times in the program.
 // -----|-------------|-------|----------------------------------------------
-//
+//  1.4e| 17 Jun 2004 | AT/DA | Added IQexp function.
+//      |             |       | Added IQasin & IQacos functions (thanks DA).
+// -----|-------------|-------|----------------------------------------------
+//  1.4f| 10 Mar 2005 | AT    | Fixed Bug In IQexp function.
+// -----|-------------|-------|----------------------------------------------
+//  1.5 | 30 Jan 2008 | LH    | 1. Changed the definion of the _IQatan2PU(A,B)
+//      |             |       |    macro for FLOAT_MATH so that a call to
+//      |             |       |    divide will not occur.
+//      |             |       | 2. If MATH_TYPE == FLOAT_MATH, then include the
+//      |             |       |    following standard headers: math.h
+//      |             |       |    stdlib.h.
+//      |             |       | 3. Added missing #defines for the non-global
+//      |             |       |    _IQatanN() function
+//      |             |       | 4. Adding missing definitions for absolute
+//      |             |       |    value when MATH_TYPE == FLOAT_MATH
+//      |             |       | 5. Included limits.h and changed the definition
+//      |             |       |    of MAX_IQ_NEG to LONG_MIN and MAX_IQ_POS
+//      |             |       |    to LONG_MAX
+// -----|-------------|-------|----------------------------------------------
+//  1.5c| 8 June 2010 |  LH   | Changes made to improve porting between IQ and
+//      |             |       | and float.
+//      |             |       |
+//      |             |       | 1. Added left shift and right shift #defines
+//      |             |       |    for multiplying and dividing by power of
+//      |             |       |    2 (up to 64) for IQ_MATH
+//      |             |       |
+//      |             |       | 2. Added corresponding multiply/divide #defines
+//      |             |       |    for powers of 2 (up to 64) for FLOAT_MATH
+//      |             |       |
+//      |             |       | 3. FLOAT_MATH: Corrected the #defines for
+//      |             |       |    conversion from IQ to Q15
+//      |             |       |
+//      |             |       |    a) removed the L on the constant to avoid
+//      |             |       |       the 64-bit float multiply call to the
+//      |             |       |       runtime support library.
+//      |             |       |    b) removed the conversion from float to
+//      |             |       |       int before the multiply.  This prevented
+//      |             |       |       native floating point from being used.
+//      |             |       |
+//      |             |       | 4. FLOAT_MATH: Modified IQdiv and IQNdiv macros t
+//      |             |       |    such that the arguments are cast to float before
+//      |             |       |    he division.
+//      |             |       |
+//      |             |       |    In some cases the IQ_MATH verion was used to
+//      |             |       |    divide an _iq type by an int32, which works fine.
+//      |             |       |
+//      |             |       |    This change will allow the FLOAT_TYPE macros to
+//      |             |       |    to also be used with integer types, and not
+//      |             |       |    just "_iq" (i.e. float) types.
+//      |             |       |
+//      |             |       | 5. FLOAT_MATH: Changed the definition of sat for float
+//      |             |       |    math.  This new definition uses compiler intrinsics and
+//      |             |       |    requires codegen tools V5.2.2 or later
+//      |             |       |    The previous definition can be uncommented
+//      |             |       |    if needed for previous versions of the codegen tools
+//      |             |       |    however it will not be efficient.
+// -----|-------------|-------|----------------------------------------------
+// 1.6.0| August 2011 |       | Added LOG function
+// -----|-------------|-------|----------------------------------------------
 //###########################################################################
-// 
+// $TI Release: Release 1.5c $
+// $Release Date: June 8, 2010 $
+//###########################################################################
+//
 // User needs to configure "MATH_TYPE" and "GLOBAL_Q" values:
 //
 //---------------------------------------------------------------------------
@@ -45,7 +108,7 @@
 #endif
 
 //---------------------------------------------------------------------------
-// Select global Q value and scaling. The Q value is limited to the 
+// Select global Q value and scaling. The Q value is limited to the
 // following range for all functions:
 //
 //        30 <= GLOBAL_Q <=  1
@@ -53,6 +116,15 @@
 #ifndef   GLOBAL_Q
 #define   GLOBAL_Q       24
 #endif
+
+//---------------------------------------------------------------------------
+// If using FLOAT_MATH, include standard headers to avoid conversion issues
+//
+#if MATH_TYPE == FLOAT_MATH
+#include <math.h>
+#include <stdlib.h>
+#endif
+#include <limits.h>
 
 //---------------------------------------------------------------------------
 // Various Usefull Constant Definitions:
@@ -89,8 +161,8 @@
 #define   Q2          2
 #define   Q1          1
 
-#define   MAX_IQ_POS  2147483647 
-#define   MAX_IQ_NEG  -2147483648
+#define   MAX_IQ_POS  LONG_MAX
+#define   MAX_IQ_NEG  LONG_MIN
 #define   MIN_IQ_POS  1
 #define   MIN_IQ_NEG  -1
 
@@ -131,6 +203,20 @@ typedef   long    _iq4;
 typedef   long    _iq3;
 typedef   long    _iq2;
 typedef   long    _iq1;
+//---------------------------------------------------------------------------
+#define _IQmpy2(A)          ((A)<<1)
+#define _IQmpy4(A)          ((A)<<2)
+#define _IQmpy8(A)          ((A)<<3)
+#define _IQmpy16(A)         ((A)<<4)
+#define _IQmpy32(A)         ((A)<<5)
+#define _IQmpy64(A)         ((A)<<6)
+
+#define _IQdiv2(A)          ((A)>>1)
+#define _IQdiv4(A)          ((A)>>2)
+#define _IQdiv8(A)          ((A)>>3)
+#define _IQdiv16(A)         ((A)>>4)
+#define _IQdiv32(A)         ((A)>>5)
+#define _IQdiv64(A)         ((A)>>6)
 //---------------------------------------------------------------------------
 #define   _IQ30(A)      (long) ((A) * 1073741824.0L)
 #define   _IQ29(A)      (long) ((A) * 536870912.0L)
@@ -381,140 +467,296 @@ extern    float _IQ1toF(long A);
 #define   _IQtoIQ30(A)  ((long) (A) << (30 - GLOBAL_Q))
 #define   _IQ30toIQ(A)  ((long) (A) >> (30 - GLOBAL_Q))
 
-#define   _IQtoIQ29(A)  ((GLOBAL_Q >= 29) ? ((long) (A) >> (GLOBAL_Q - 29)):((long) (A) << (29 - GLOBAL_Q)))
-#define   _IQ29toIQ(A)  ((GLOBAL_Q >= 29) ? ((long) (A) << (GLOBAL_Q - 29)):((long) (A) >> (29 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 29)
+#define   _IQtoIQ29(A) ((long) (A) >> (GLOBAL_Q - 29))
+#define   _IQ29toIQ(A) ((long) (A) << (GLOBAL_Q - 29))
+#else
+#define   _IQtoIQ29(A) ((long) (A) << (29 - GLOBAL_Q))
+#define   _IQ29toIQ(A) ((long) (A) >> (29 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ28(A)  ((GLOBAL_Q >= 28) ? ((long) (A) >> (GLOBAL_Q - 28)):((long) (A) << (28 - GLOBAL_Q)))
-#define   _IQ28toIQ(A)  ((GLOBAL_Q >= 28) ? ((long) (A) << (GLOBAL_Q - 28)):((long) (A) >> (28 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 28)
+#define   _IQtoIQ28(A) ((long) (A) >> (GLOBAL_Q - 28))
+#define   _IQ28toIQ(A) ((long) (A) << (GLOBAL_Q - 28))
+#else
+#define   _IQtoIQ28(A) ((long) (A) << (28 - GLOBAL_Q))
+#define   _IQ28toIQ(A) ((long) (A) >> (28 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ27(A)  ((GLOBAL_Q >= 27) ? ((long) (A) >> (GLOBAL_Q - 27)):((long) (A) << (27 - GLOBAL_Q)))
-#define   _IQ27toIQ(A)  ((GLOBAL_Q >= 27) ? ((long) (A) << (GLOBAL_Q - 27)):((long) (A) >> (27 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 27)
+#define   _IQtoIQ27(A) ((long) (A) >> (GLOBAL_Q - 27))
+#define   _IQ27toIQ(A) ((long) (A) << (GLOBAL_Q - 27))
+#else
+#define   _IQtoIQ27(A) ((long) (A) << (27 - GLOBAL_Q))
+#define   _IQ27toIQ(A) ((long) (A) >> (27 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ26(A)  ((GLOBAL_Q >= 26) ? ((long) (A) >> (GLOBAL_Q - 26)):((long) (A) << (26 - GLOBAL_Q)))
-#define   _IQ26toIQ(A)  ((GLOBAL_Q >= 26) ? ((long) (A) << (GLOBAL_Q - 26)):((long) (A) >> (26 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 26)
+#define   _IQtoIQ26(A) ((long) (A) >> (GLOBAL_Q - 26))
+#define   _IQ26toIQ(A) ((long) (A) << (GLOBAL_Q - 26))
+#else
+#define   _IQtoIQ26(A) ((long) (A) << (26 - GLOBAL_Q))
+#define   _IQ26toIQ(A) ((long) (A) >> (26 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ25(A)  ((GLOBAL_Q >= 25) ? ((long) (A) >> (GLOBAL_Q - 25)):((long) (A) << (25 - GLOBAL_Q)))
-#define   _IQ25toIQ(A)  ((GLOBAL_Q >= 25) ? ((long) (A) << (GLOBAL_Q - 25)):((long) (A) >> (25 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 25)
+#define   _IQtoIQ25(A) ((long) (A) >> (GLOBAL_Q - 25))
+#define   _IQ25toIQ(A) ((long) (A) << (GLOBAL_Q - 25))
+#else
+#define   _IQtoIQ25(A) ((long) (A) << (25 - GLOBAL_Q))
+#define   _IQ25toIQ(A) ((long) (A) >> (25 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ24(A)  ((GLOBAL_Q >= 24) ? ((long) (A) >> (GLOBAL_Q - 24)):((long) (A) << (24 - GLOBAL_Q)))
-#define   _IQ24toIQ(A)  ((GLOBAL_Q >= 24) ? ((long) (A) << (GLOBAL_Q - 24)):((long) (A) >> (24 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 24)
+#define   _IQtoIQ24(A) ((long) (A) >> (GLOBAL_Q - 24))
+#define   _IQ24toIQ(A) ((long) (A) << (GLOBAL_Q - 24))
+#else
+#define   _IQtoIQ24(A) ((long) (A) << (24 - GLOBAL_Q))
+#define   _IQ24toIQ(A) ((long) (A) >> (24 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ23(A)  ((GLOBAL_Q >= 23) ? ((long) (A) >> (GLOBAL_Q - 23)):((long) (A) << (23 - GLOBAL_Q)))
-#define   _IQ23toIQ(A)  ((GLOBAL_Q >= 23) ? ((long) (A) << (GLOBAL_Q - 23)):((long) (A) >> (23 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 23)
+#define   _IQtoIQ23(A) ((long) (A) >> (GLOBAL_Q - 23))
+#define   _IQ23toIQ(A) ((long) (A) << (GLOBAL_Q - 23))
+#else
+#define   _IQtoIQ23(A) ((long) (A) << (23 - GLOBAL_Q))
+#define   _IQ23toIQ(A) ((long) (A) >> (23 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ22(A)  ((GLOBAL_Q >= 22) ? ((long) (A) >> (GLOBAL_Q - 22)):((long) (A) << (22 - GLOBAL_Q)))
-#define   _IQ22toIQ(A)  ((GLOBAL_Q >= 22) ? ((long) (A) << (GLOBAL_Q - 22)):((long) (A) >> (22 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 22)
+#define   _IQtoIQ22(A) ((long) (A) >> (GLOBAL_Q - 22))
+#define   _IQ22toIQ(A) ((long) (A) << (GLOBAL_Q - 22))
+#else
+#define   _IQtoIQ22(A) ((long) (A) << (22 - GLOBAL_Q))
+#define   _IQ22toIQ(A) ((long) (A) >> (22 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ21(A)  ((GLOBAL_Q >= 21) ? ((long) (A) >> (GLOBAL_Q - 21)):((long) (A) << (21 - GLOBAL_Q)))
-#define   _IQ21toIQ(A)  ((GLOBAL_Q >= 21) ? ((long) (A) << (GLOBAL_Q - 21)):((long) (A) >> (21 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 21)
+#define   _IQtoIQ21(A) ((long) (A) >> (GLOBAL_Q - 21))
+#define   _IQ21toIQ(A) ((long) (A) << (GLOBAL_Q - 21))
+#else
+#define   _IQtoIQ21(A) ((long) (A) << (21 - GLOBAL_Q))
+#define   _IQ21toIQ(A) ((long) (A) >> (21 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ20(A)  ((GLOBAL_Q >= 20) ? ((long) (A) >> (GLOBAL_Q - 20)):((long) (A) << (20 - GLOBAL_Q)))
-#define   _IQ20toIQ(A)  ((GLOBAL_Q >= 20) ? ((long) (A) << (GLOBAL_Q - 20)):((long) (A) >> (20 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 20)
+#define   _IQtoIQ20(A) ((long) (A) >> (GLOBAL_Q - 20))
+#define   _IQ20toIQ(A) ((long) (A) << (GLOBAL_Q - 20))
+#else
+#define   _IQtoIQ20(A) ((long) (A) << (20 - GLOBAL_Q))
+#define   _IQ20toIQ(A) ((long) (A) >> (20 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ19(A)  ((GLOBAL_Q >= 19) ? ((long) (A) >> (GLOBAL_Q - 19)):((long) (A) << (19 - GLOBAL_Q)))
-#define   _IQ19toIQ(A)  ((GLOBAL_Q >= 19) ? ((long) (A) << (GLOBAL_Q - 19)):((long) (A) >> (19 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 19)
+#define   _IQtoIQ19(A) ((long) (A) >> (GLOBAL_Q - 19))
+#define   _IQ19toIQ(A) ((long) (A) << (GLOBAL_Q - 19))
+#else
+#define   _IQtoIQ19(A) ((long) (A) << (19 - GLOBAL_Q))
+#define   _IQ19toIQ(A) ((long) (A) >> (19 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ18(A)  ((GLOBAL_Q >= 18) ? ((long) (A) >> (GLOBAL_Q - 18)):((long) (A) << (18 - GLOBAL_Q)))
-#define   _IQ18toIQ(A)  ((GLOBAL_Q >= 18) ? ((long) (A) << (GLOBAL_Q - 18)):((long) (A) >> (18 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 18)
+#define   _IQtoIQ18(A) ((long) (A) >> (GLOBAL_Q - 18))
+#define   _IQ18toIQ(A) ((long) (A) << (GLOBAL_Q - 18))
+#else
+#define   _IQtoIQ18(A) ((long) (A) << (18 - GLOBAL_Q))
+#define   _IQ18toIQ(A) ((long) (A) >> (18 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ17(A)  ((GLOBAL_Q >= 17) ? ((long) (A) >> (GLOBAL_Q - 17)):((long) (A) << (17 - GLOBAL_Q)))
-#define   _IQ17toIQ(A)  ((GLOBAL_Q >= 17) ? ((long) (A) << (GLOBAL_Q - 17)):((long) (A) >> (17 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 17)
+#define   _IQtoIQ17(A) ((long) (A) >> (GLOBAL_Q - 17))
+#define   _IQ17toIQ(A) ((long) (A) << (GLOBAL_Q - 17))
+#else
+#define   _IQtoIQ17(A) ((long) (A) << (17 - GLOBAL_Q))
+#define   _IQ17toIQ(A) ((long) (A) >> (17 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ16(A)  ((GLOBAL_Q >= 16) ? ((long) (A) >> (GLOBAL_Q - 16)):((long) (A) << (16 - GLOBAL_Q)))
-#define   _IQ16toIQ(A)  ((GLOBAL_Q >= 16) ? ((long) (A) << (GLOBAL_Q - 16)):((long) (A) >> (16 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 16)
+#define   _IQtoIQ16(A) ((long) (A) >> (GLOBAL_Q - 16))
+#define   _IQ16toIQ(A) ((long) (A) << (GLOBAL_Q - 16))
+#else
+#define   _IQtoIQ16(A) ((long) (A) << (16 - GLOBAL_Q))
+#define   _IQ16toIQ(A) ((long) (A) >> (16 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ15(A)  ((GLOBAL_Q >= 15) ? ((long) (A) >> (GLOBAL_Q - 15)):((long) (A) << (15 - GLOBAL_Q)))
-#define   _IQ15toIQ(A)  ((GLOBAL_Q >= 15) ? ((long) (A) << (GLOBAL_Q - 15)):((long) (A) >> (15 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 15)
+#define   _IQtoIQ15(A) ((long) (A) >> (GLOBAL_Q - 15))
+#define   _IQ15toIQ(A) ((long) (A) << (GLOBAL_Q - 15))
+#define   _IQtoQ15(A)  ((long) (A) >> (GLOBAL_Q - 15))
+#define   _Q15toIQ(A)  ((long) (A) << (GLOBAL_Q - 15))
+#else
+#define   _IQtoIQ15(A) ((long) (A) << (15 - GLOBAL_Q))
+#define   _IQ15toIQ(A) ((long) (A) >> (15 - GLOBAL_Q))
+#define   _IQtoQ15(A)  ((long) (A) << (15 - GLOBAL_Q))
+#define   _Q15toIQ(A)  ((long) (A) >> (15 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ14(A)  ((GLOBAL_Q >= 14) ? ((long) (A) >> (GLOBAL_Q - 14)):((long) (A) << (14 - GLOBAL_Q)))
-#define   _IQ14toIQ(A)  ((GLOBAL_Q >= 14) ? ((long) (A) << (GLOBAL_Q - 14)):((long) (A) >> (14 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 14)
+#define   _IQtoIQ14(A) ((long) (A) >> (GLOBAL_Q - 14))
+#define   _IQ14toIQ(A) ((long) (A) << (GLOBAL_Q - 14))
+#define   _IQtoQ14(A)  ((long) (A) >> (GLOBAL_Q - 14))
+#define   _Q14toIQ(A)  ((long) (A) << (GLOBAL_Q - 14))
+#else
+#define   _IQtoIQ14(A) ((long) (A) << (14 - GLOBAL_Q))
+#define   _IQ14toIQ(A) ((long) (A) >> (14 - GLOBAL_Q))
+#define   _IQtoQ14(A)  ((long) (A) << (14 - GLOBAL_Q))
+#define   _Q14toIQ(A)  ((long) (A) >> (14 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ13(A)  ((GLOBAL_Q >= 13) ? ((long) (A) >> (GLOBAL_Q - 13)):((long) (A) << (13 - GLOBAL_Q)))
-#define   _IQ13toIQ(A)  ((GLOBAL_Q >= 13) ? ((long) (A) << (GLOBAL_Q - 13)):((long) (A) >> (13 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 13)
+#define   _IQtoIQ13(A) ((long) (A) >> (GLOBAL_Q - 13))
+#define   _IQ13toIQ(A) ((long) (A) << (GLOBAL_Q - 13))
+#define   _IQtoQ13(A)  ((long) (A) >> (GLOBAL_Q - 13))
+#define   _Q13toIQ(A)  ((long) (A) << (GLOBAL_Q - 13))
+#else
+#define   _IQtoIQ13(A) ((long) (A) << (13 - GLOBAL_Q))
+#define   _IQ13toIQ(A) ((long) (A) >> (13 - GLOBAL_Q))
+#define   _IQtoQ13(A)  ((long) (A) << (13 - GLOBAL_Q))
+#define   _Q13toIQ(A)  ((long) (A) >> (13 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ12(A)  ((GLOBAL_Q >= 12) ? ((long) (A) >> (GLOBAL_Q - 12)):((long) (A) << (12 - GLOBAL_Q)))
-#define   _IQ12toIQ(A)  ((GLOBAL_Q >= 12) ? ((long) (A) << (GLOBAL_Q - 12)):((long) (A) >> (12 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 12)
+#define   _IQtoIQ12(A) ((long) (A) >> (GLOBAL_Q - 12))
+#define   _IQ12toIQ(A) ((long) (A) << (GLOBAL_Q - 12))
+#define   _IQtoQ12(A)  ((long) (A) >> (GLOBAL_Q - 12))
+#define   _Q12toIQ(A)  ((long) (A) << (GLOBAL_Q - 12))
+#else
+#define   _IQtoIQ12(A) ((long) (A) << (12 - GLOBAL_Q))
+#define   _IQ12toIQ(A) ((long) (A) >> (12 - GLOBAL_Q))
+#define   _IQtoQ12(A)  ((long) (A) << (12 - GLOBAL_Q))
+#define   _Q12toIQ(A)  ((long) (A) >> (12 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ11(A)  ((GLOBAL_Q >= 11) ? ((long) (A) >> (GLOBAL_Q - 11)):((long) (A) << (11 - GLOBAL_Q)))
-#define   _IQ11toIQ(A)  ((GLOBAL_Q >= 11) ? ((long) (A) << (GLOBAL_Q - 11)):((long) (A) >> (11 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 11)
+#define   _IQtoIQ11(A) ((long) (A) >> (GLOBAL_Q - 11))
+#define   _IQ11toIQ(A) ((long) (A) << (GLOBAL_Q - 11))
+#define   _IQtoQ11(A)  ((long) (A) >> (GLOBAL_Q - 11))
+#define   _Q11toIQ(A)  ((long) (A) << (GLOBAL_Q - 11))
+#else
+#define   _IQtoIQ11(A) ((long) (A) << (11 - GLOBAL_Q))
+#define   _IQ11toIQ(A) ((long) (A) >> (11 - GLOBAL_Q))
+#define   _IQtoQ11(A)  ((long) (A) << (11 - GLOBAL_Q))
+#define   _Q11toIQ(A)  ((long) (A) >> (11 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ10(A)  ((GLOBAL_Q >= 10) ? ((long) (A) >> (GLOBAL_Q - 10)):((long) (A) << (10 - GLOBAL_Q)))
-#define   _IQ10toIQ(A)  ((GLOBAL_Q >= 10) ? ((long) (A) << (GLOBAL_Q - 10)):((long) (A) >> (10 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 10)
+#define   _IQtoIQ10(A) ((long) (A) >> (GLOBAL_Q - 10))
+#define   _IQ10toIQ(A) ((long) (A) << (GLOBAL_Q - 10))
+#define   _IQtoQ10(A)  ((long) (A) >> (GLOBAL_Q - 10))
+#define   _Q10toIQ(A)  ((long) (A) << (GLOBAL_Q - 10))
+#else
+#define   _IQtoIQ10(A) ((long) (A) << (10 - GLOBAL_Q))
+#define   _IQ10toIQ(A) ((long) (A) >> (10 - GLOBAL_Q))
+#define   _IQtoQ10(A)  ((long) (A) << (10 - GLOBAL_Q))
+#define   _Q10toIQ(A)  ((long) (A) >> (10 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ9(A)   ((GLOBAL_Q >= 9) ? ((long) (A) >> (GLOBAL_Q - 9)):((long) (A) << (9 - GLOBAL_Q)))
-#define   _IQ9toIQ(A)   ((GLOBAL_Q >= 9) ? ((long) (A) << (GLOBAL_Q - 9)):((long) (A) >> (9 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 9)
+#define   _IQtoIQ9(A) ((long) (A) >> (GLOBAL_Q - 9))
+#define   _IQ9toIQ(A) ((long) (A) << (GLOBAL_Q - 9))
+#define   _IQtoQ9(A)  ((long) (A) >> (GLOBAL_Q - 9))
+#define   _Q9toIQ(A)  ((long) (A) << (GLOBAL_Q - 9))
+#else
+#define   _IQtoIQ9(A) ((long) (A) << (9 - GLOBAL_Q))
+#define   _IQ9toIQ(A) ((long) (A) >> (9 - GLOBAL_Q))
+#define   _IQtoQ9(A)  ((long) (A) << (9 - GLOBAL_Q))
+#define   _Q9toIQ(A)  ((long) (A) >> (9 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ8(A)   ((GLOBAL_Q >= 8) ? ((long) (A) >> (GLOBAL_Q - 8)):((long) (A) << (8 - GLOBAL_Q)))
-#define   _IQ8toIQ(A)   ((GLOBAL_Q >= 8) ? ((long) (A) << (GLOBAL_Q - 8)):((long) (A) >> (8 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 8)
+#define   _IQtoIQ8(A) ((long) (A) >> (GLOBAL_Q - 8))
+#define   _IQ8toIQ(A) ((long) (A) << (GLOBAL_Q - 8))
+#define   _IQtoQ8(A)  ((long) (A) >> (GLOBAL_Q - 8))
+#define   _Q8toIQ(A)  ((long) (A) << (GLOBAL_Q - 8))
+#else
+#define   _IQtoIQ8(A) ((long) (A) << (8 - GLOBAL_Q))
+#define   _IQ8toIQ(A) ((long) (A) >> (8 - GLOBAL_Q))
+#define   _IQtoQ8(A)  ((long) (A) << (8 - GLOBAL_Q))
+#define   _Q8toIQ(A)  ((long) (A) >> (8 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ7(A)   ((GLOBAL_Q >= 7) ? ((long) (A) >> (GLOBAL_Q - 7)):((long) (A) << (7 - GLOBAL_Q)))
-#define   _IQ7toIQ(A)   ((GLOBAL_Q >= 7) ? ((long) (A) << (GLOBAL_Q - 7)):((long) (A) >> (7 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 7)
+#define   _IQtoIQ7(A) ((long) (A) >> (GLOBAL_Q - 7))
+#define   _IQ7toIQ(A) ((long) (A) << (GLOBAL_Q - 7))
+#define   _IQtoQ7(A)  ((long) (A) >> (GLOBAL_Q - 7))
+#define   _Q7toIQ(A)  ((long) (A) << (GLOBAL_Q - 7))
+#else
+#define   _IQtoIQ7(A) ((long) (A) << (7 - GLOBAL_Q))
+#define   _IQ7toIQ(A) ((long) (A) >> (7 - GLOBAL_Q))
+#define   _IQtoQ7(A)  ((long) (A) << (7 - GLOBAL_Q))
+#define   _Q7toIQ(A)  ((long) (A) >> (7 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ6(A)   ((GLOBAL_Q >= 6) ? ((long) (A) >> (GLOBAL_Q - 6)):((long) (A) << (6 - GLOBAL_Q)))
-#define   _IQ6toIQ(A)   ((GLOBAL_Q >= 6) ? ((long) (A) << (GLOBAL_Q - 6)):((long) (A) >> (6 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 6)
+#define   _IQtoIQ6(A) ((long) (A) >> (GLOBAL_Q - 6))
+#define   _IQ6toIQ(A) ((long) (A) << (GLOBAL_Q - 6))
+#define   _IQtoQ6(A)  ((long) (A) >> (GLOBAL_Q - 6))
+#define   _Q6toIQ(A)  ((long) (A) << (GLOBAL_Q - 6))
+#else
+#define   _IQtoIQ6(A) ((long) (A) << (6 - GLOBAL_Q))
+#define   _IQ6toIQ(A) ((long) (A) >> (6 - GLOBAL_Q))
+#define   _IQtoQ6(A)  ((long) (A) << (6 - GLOBAL_Q))
+#define   _Q6toIQ(A)  ((long) (A) >> (6 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ5(A)   ((GLOBAL_Q >= 5) ? ((long) (A) >> (GLOBAL_Q - 5)):((long) (A) << (5 - GLOBAL_Q)))
-#define   _IQ5toIQ(A)   ((GLOBAL_Q >= 5) ? ((long) (A) << (GLOBAL_Q - 5)):((long) (A) >> (5 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 5)
+#define   _IQtoIQ5(A) ((long) (A) >> (GLOBAL_Q - 5))
+#define   _IQ5toIQ(A) ((long) (A) << (GLOBAL_Q - 5))
+#define   _IQtoQ5(A)  ((long) (A) >> (GLOBAL_Q - 5))
+#define   _Q5toIQ(A)  ((long) (A) << (GLOBAL_Q - 5))
+#else
+#define   _IQtoIQ5(A) ((long) (A) << (5 - GLOBAL_Q))
+#define   _IQ5toIQ(A) ((long) (A) >> (5 - GLOBAL_Q))
+#define   _IQtoQ5(A)  ((long) (A) << (5 - GLOBAL_Q))
+#define   _Q5toIQ(A)  ((long) (A) >> (5 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ4(A)   ((GLOBAL_Q >= 4) ? ((long) (A) >> (GLOBAL_Q - 4)):((long) (A) << (4 - GLOBAL_Q)))
-#define   _IQ4toIQ(A)   ((GLOBAL_Q >= 4) ? ((long) (A) << (GLOBAL_Q - 4)):((long) (A) >> (4 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 4)
+#define   _IQtoIQ4(A) ((long) (A) >> (GLOBAL_Q - 4))
+#define   _IQ4toIQ(A) ((long) (A) << (GLOBAL_Q - 4))
+#define   _IQtoQ4(A)  ((long) (A) >> (GLOBAL_Q - 4))
+#define   _Q4toIQ(A)  ((long) (A) << (GLOBAL_Q - 4))
+#else
+#define   _IQtoIQ4(A) ((long) (A) << (4 - GLOBAL_Q))
+#define   _IQ4toIQ(A) ((long) (A) >> (4 - GLOBAL_Q))
+#define   _IQtoQ4(A)  ((long) (A) << (4 - GLOBAL_Q))
+#define   _Q4toIQ(A)  ((long) (A) >> (4 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ3(A)   ((GLOBAL_Q >= 3) ? ((long) (A) >> (GLOBAL_Q - 3)):((long) (A) << (3 - GLOBAL_Q)))
-#define   _IQ3toIQ(A)   ((GLOBAL_Q >= 3) ? ((long) (A) << (GLOBAL_Q - 3)):((long) (A) >> (3 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 3)
+#define   _IQtoIQ3(A) ((long) (A) >> (GLOBAL_Q - 3))
+#define   _IQ3toIQ(A) ((long) (A) << (GLOBAL_Q - 3))
+#define   _IQtoQ3(A)  ((long) (A) >> (GLOBAL_Q - 3))
+#define   _Q3toIQ(A)  ((long) (A) << (GLOBAL_Q - 3))
+#else
+#define   _IQtoIQ3(A) ((long) (A) << (3 - GLOBAL_Q))
+#define   _IQ3toIQ(A) ((long) (A) >> (3 - GLOBAL_Q))
+#define   _IQtoQ3(A)  ((long) (A) << (3 - GLOBAL_Q))
+#define   _Q3toIQ(A)  ((long) (A) >> (3 - GLOBAL_Q))
+#endif
 
-#define   _IQtoIQ2(A)   ((GLOBAL_Q >= 2) ? ((long) (A) >> (GLOBAL_Q - 2)):((long) (A) << (2 - GLOBAL_Q)))
-#define   _IQ2toIQ(A)   ((GLOBAL_Q >= 2) ? ((long) (A) << (GLOBAL_Q - 2)):((long) (A) >> (2 - GLOBAL_Q)))
+#if (GLOBAL_Q >= 2)
+#define   _IQtoIQ2(A) ((long) (A) >> (GLOBAL_Q - 2))
+#define   _IQ2toIQ(A) ((long) (A) << (GLOBAL_Q - 2))
+#define   _IQtoQ2(A)  ((long) (A) >> (GLOBAL_Q - 2))
+#define   _Q2toIQ(A)  ((long) (A) << (GLOBAL_Q - 2))
+#else
+#define   _IQtoIQ2(A) ((long) (A) << (2 - GLOBAL_Q))
+#define   _IQ2toIQ(A) ((long) (A) >> (2 - GLOBAL_Q))
+#define   _IQtoQ2(A)  ((long) (A) << (2 - GLOBAL_Q))
+#define   _Q2toIQ(A)  ((long) (A) >> (2 - GLOBAL_Q))
+#endif
+
+#if (GLOBAL_Q >= 1)
+#define   _IQtoQ1(A)  ((long) (A) >> (GLOBAL_Q - 1))
+#define   _Q1toIQ(A)  ((long) (A) << (GLOBAL_Q - 1))
+#else
+#define   _IQtoQ1(A)  ((long) (A) << (1 - GLOBAL_Q))
+#define   _Q1toIQ(A)  ((long) (A) >> (1 - GLOBAL_Q))
+#endif
 
 #define   _IQtoIQ1(A)   ((long) (A) >> (GLOBAL_Q - 1))
 #define   _IQ1toIQ(A)   ((long) (A) << (GLOBAL_Q - 1))
-//---------------------------------------------------------------------------
-#define   _IQtoQ15(A)   ((GLOBAL_Q >= 15) ? ((long) (A) >> (GLOBAL_Q - 15)):((long) (A) << (15 - GLOBAL_Q)))
-#define   _Q15toIQ(A)   ((GLOBAL_Q >= 15) ? ((long) (A) << (GLOBAL_Q - 15)):((long) (A) >> (15 - GLOBAL_Q)))
-
-#define   _IQtoQ14(A)   ((GLOBAL_Q >= 14) ? ((long) (A) >> (GLOBAL_Q - 14)):((long) (A) << (14 - GLOBAL_Q)))
-#define   _Q14toIQ(A)   ((GLOBAL_Q >= 14) ? ((long) (A) << (GLOBAL_Q - 14)):((long) (A) >> (14 - GLOBAL_Q)))
-
-#define   _IQtoQ13(A)   ((GLOBAL_Q >= 13) ? ((long) (A) >> (GLOBAL_Q - 13)):((long) (A) << (13 - GLOBAL_Q)))
-#define   _Q13toIQ(A)   ((GLOBAL_Q >= 13) ? ((long) (A) << (GLOBAL_Q - 13)):((long) (A) >> (13 - GLOBAL_Q)))
-
-#define   _IQtoQ12(A)   ((GLOBAL_Q >= 12) ? ((long) (A) >> (GLOBAL_Q - 12)):((long) (A) << (12 - GLOBAL_Q)))
-#define   _Q12toIQ(A)   ((GLOBAL_Q >= 12) ? ((long) (A) << (GLOBAL_Q - 12)):((long) (A) >> (12 - GLOBAL_Q)))
-
-#define   _IQtoQ11(A)   ((GLOBAL_Q >= 11) ? ((long) (A) >> (GLOBAL_Q - 11)):((long) (A) << (11 - GLOBAL_Q)))
-#define   _Q11toIQ(A)   ((GLOBAL_Q >= 11) ? ((long) (A) << (GLOBAL_Q - 11)):((long) (A) >> (11 - GLOBAL_Q)))
-
-#define   _IQtoQ10(A)   ((GLOBAL_Q >= 10) ? ((long) (A) >> (GLOBAL_Q - 10)):((long) (A) << (10 - GLOBAL_Q)))
-#define   _Q10toIQ(A)   ((GLOBAL_Q >= 10) ? ((long) (A) << (GLOBAL_Q - 10)):((long) (A) >> (10 - GLOBAL_Q)))
-
-#define   _IQtoQ9(A)    ((GLOBAL_Q >= 9) ? ((long) (A) >> (GLOBAL_Q - 9)):((long) (A) << (9 - GLOBAL_Q)))
-#define   _Q9toIQ(A)    ((GLOBAL_Q >= 9) ? ((long) (A) << (GLOBAL_Q - 9)):((long) (A) >> (9 - GLOBAL_Q)))
-
-#define   _IQtoQ8(A)    ((GLOBAL_Q >= 8) ? ((long) (A) >> (GLOBAL_Q - 8)):((long) (A) << (8 - GLOBAL_Q)))
-#define   _Q8toIQ(A)    ((GLOBAL_Q >= 8) ? ((long) (A) << (GLOBAL_Q - 8)):((long) (A) >> (8 - GLOBAL_Q)))
-
-#define   _IQtoQ7(A)    ((GLOBAL_Q >= 7) ? ((long) (A) >> (GLOBAL_Q - 7)):((long) (A) << (7 - GLOBAL_Q)))
-#define   _Q7toIQ(A)    ((GLOBAL_Q >= 7) ? ((long) (A) << (GLOBAL_Q - 7)):((long) (A) >> (7 - GLOBAL_Q)))
-
-#define   _IQtoQ6(A)    ((GLOBAL_Q >= 6) ? ((long) (A) >> (GLOBAL_Q - 6)):((long) (A) << (6 - GLOBAL_Q)))
-#define   _Q6toIQ(A)    ((GLOBAL_Q >= 6) ? ((long) (A) << (GLOBAL_Q - 6)):((long) (A) >> (6 - GLOBAL_Q)))
-
-#define   _IQtoQ5(A)    ((GLOBAL_Q >= 5) ? ((long) (A) >> (GLOBAL_Q - 5)):((long) (A) << (5 - GLOBAL_Q)))
-#define   _Q5toIQ(A)    ((GLOBAL_Q >= 5) ? ((long) (A) << (GLOBAL_Q - 5)):((long) (A) >> (5 - GLOBAL_Q)))
-
-#define   _IQtoQ5(A)    ((GLOBAL_Q >= 5) ? ((long) (A) >> (GLOBAL_Q - 5)):((long) (A) << (5 - GLOBAL_Q)))
-#define   _Q5toIQ(A)    ((GLOBAL_Q >= 5) ? ((long) (A) << (GLOBAL_Q - 5)):((long) (A) >> (5 - GLOBAL_Q)))
-
-#define   _IQtoQ4(A)    ((GLOBAL_Q >= 4) ? ((long) (A) >> (GLOBAL_Q - 4)):((long) (A) << (4 - GLOBAL_Q)))
-#define   _Q4toIQ(A)    ((GLOBAL_Q >= 4) ? ((long) (A) << (GLOBAL_Q - 4)):((long) (A) >> (4 - GLOBAL_Q)))
-
-#define   _IQtoQ3(A)    ((GLOBAL_Q >= 3) ? ((long) (A) >> (GLOBAL_Q - 3)):((long) (A) << (3 - GLOBAL_Q)))
-#define   _Q3toIQ(A)    ((GLOBAL_Q >= 3) ? ((long) (A) << (GLOBAL_Q - 3)):((long) (A) >> (3 - GLOBAL_Q)))
-
-#define   _IQtoQ2(A)    ((GLOBAL_Q >= 2) ? ((long) (A) >> (GLOBAL_Q - 2)):((long) (A) << (2 - GLOBAL_Q)))
-#define   _Q2toIQ(A)    ((GLOBAL_Q >= 2) ? ((long) (A) << (GLOBAL_Q - 2)):((long) (A) >> (2 - GLOBAL_Q)))
-
-#define   _IQtoQ1(A)    ((GLOBAL_Q >= 1) ? ((long) (A) >> (GLOBAL_Q - 1)):((long) (A) << (1 - GLOBAL_Q)))
-#define   _Q1toIQ(A)    ((GLOBAL_Q >= 1) ? ((long) (A) << (GLOBAL_Q - 1)):((long) (A) >> (1 - GLOBAL_Q)))
 //---------------------------------------------------------------------------
 #define   _IQmpy(A,B)    __IQmpy(A,B,GLOBAL_Q)
 #define   _IQ30mpy(A,B)  __IQmpy(A,B,30)
@@ -1158,6 +1400,128 @@ extern    long _IQ1sinPU(long A);
 #define   _IQsinPU(A)  _IQ1sinPU(A)
 #endif
 //---------------------------------------------------------------------------
+extern    long _IQ30asin(long A);
+extern    long _IQ29asin(long A);
+extern    long _IQ28asin(long A);
+extern    long _IQ27asin(long A);
+extern    long _IQ26asin(long A);
+extern    long _IQ25asin(long A);
+extern    long _IQ24asin(long A);
+extern    long _IQ23asin(long A);
+extern    long _IQ22asin(long A);
+extern    long _IQ21asin(long A);
+extern    long _IQ20asin(long A);
+extern    long _IQ19asin(long A);
+extern    long _IQ18asin(long A);
+extern    long _IQ17asin(long A);
+extern    long _IQ16asin(long A);
+extern    long _IQ15asin(long A);
+extern    long _IQ14asin(long A);
+extern    long _IQ13asin(long A);
+extern    long _IQ12asin(long A);
+extern    long _IQ11asin(long A);
+extern    long _IQ10asin(long A);
+extern    long _IQ9asin(long A);
+extern    long _IQ8asin(long A);
+extern    long _IQ7asin(long A);
+extern    long _IQ6asin(long A);
+extern    long _IQ5asin(long A);
+extern    long _IQ4asin(long A);
+extern    long _IQ3asin(long A);
+extern    long _IQ2asin(long A);
+extern    long _IQ1asin(long A);
+
+#if GLOBAL_Q == 30
+#define   _IQasin(A)  _IQ30asin(A)
+#endif
+#if GLOBAL_Q == 29
+#define   _IQasin(A)  _IQ29asin(A)
+#endif
+#if GLOBAL_Q == 28
+#define   _IQasin(A)  _IQ28asin(A)
+#endif
+#if GLOBAL_Q == 27
+#define   _IQasin(A)  _IQ27asin(A)
+#endif
+#if GLOBAL_Q == 26
+#define   _IQasin(A)  _IQ26asin(A)
+#endif
+#if GLOBAL_Q == 25
+#define   _IQasin(A)  _IQ25asin(A)
+#endif
+#if GLOBAL_Q == 24
+#define   _IQasin(A)  _IQ24asin(A)
+#endif
+#if GLOBAL_Q == 23
+#define   _IQasin(A)  _IQ23asin(A)
+#endif
+#if GLOBAL_Q == 22
+#define   _IQasin(A)  _IQ22asin(A)
+#endif
+#if GLOBAL_Q == 21
+#define   _IQasin(A)  _IQ21asin(A)
+#endif
+#if GLOBAL_Q == 20
+#define   _IQasin(A)  _IQ20asin(A)
+#endif
+#if GLOBAL_Q == 19
+#define   _IQasin(A)  _IQ19asin(A)
+#endif
+#if GLOBAL_Q == 18
+#define   _IQasin(A)  _IQ18asin(A)
+#endif
+#if GLOBAL_Q == 17
+#define   _IQasin(A)  _IQ17asin(A)
+#endif
+#if GLOBAL_Q == 16
+#define   _IQasin(A)  _IQ16asin(A)
+#endif
+#if GLOBAL_Q == 15
+#define   _IQasin(A)  _IQ15asin(A)
+#endif
+#if GLOBAL_Q == 14
+#define   _IQasin(A)  _IQ14asin(A)
+#endif
+#if GLOBAL_Q == 13
+#define   _IQasin(A)  _IQ13asin(A)
+#endif
+#if GLOBAL_Q == 12
+#define   _IQasin(A)  _IQ12asin(A)
+#endif
+#if GLOBAL_Q == 11
+#define   _IQasin(A)  _IQ11asin(A)
+#endif
+#if GLOBAL_Q == 10
+#define   _IQasin(A)  _IQ10asin(A)
+#endif
+#if GLOBAL_Q == 9
+#define   _IQasin(A)  _IQ9asin(A)
+#endif
+#if GLOBAL_Q == 8
+#define   _IQasin(A)  _IQ8asin(A)
+#endif
+#if GLOBAL_Q == 7
+#define   _IQasin(A)  _IQ7asin(A)
+#endif
+#if GLOBAL_Q == 6
+#define   _IQasin(A)  _IQ6asin(A)
+#endif
+#if GLOBAL_Q == 5
+#define   _IQasin(A)  _IQ5asin(A)
+#endif
+#if GLOBAL_Q == 4
+#define   _IQasin(A)  _IQ4asin(A)
+#endif
+#if GLOBAL_Q == 3
+#define   _IQasin(A)  _IQ3asin(A)
+#endif
+#if GLOBAL_Q == 2
+#define   _IQasin(A)  _IQ2asin(A)
+#endif
+#if GLOBAL_Q == 1
+#define   _IQasin(A)  _IQ1asin(A)
+#endif
+//---------------------------------------------------------------------------
 extern    long _IQ30cos(long A);
 extern    long _IQ29cos(long A);
 extern    long _IQ28cos(long A);
@@ -1400,6 +1764,128 @@ extern    long _IQ1cosPU(long A);
 #endif
 #if GLOBAL_Q == 1
 #define   _IQcosPU(A)  _IQ1cosPU(A)
+#endif
+//---------------------------------------------------------------------------
+extern    long _IQ30acos(long A);
+extern    long _IQ29acos(long A);
+extern    long _IQ28acos(long A);
+extern    long _IQ27acos(long A);
+extern    long _IQ26acos(long A);
+extern    long _IQ25acos(long A);
+extern    long _IQ24acos(long A);
+extern    long _IQ23acos(long A);
+extern    long _IQ22acos(long A);
+extern    long _IQ21acos(long A);
+extern    long _IQ20acos(long A);
+extern    long _IQ19acos(long A);
+extern    long _IQ18acos(long A);
+extern    long _IQ17acos(long A);
+extern    long _IQ16acos(long A);
+extern    long _IQ15acos(long A);
+extern    long _IQ14acos(long A);
+extern    long _IQ13acos(long A);
+extern    long _IQ12acos(long A);
+extern    long _IQ11acos(long A);
+extern    long _IQ10acos(long A);
+extern    long _IQ9acos(long A);
+extern    long _IQ8acos(long A);
+extern    long _IQ7acos(long A);
+extern    long _IQ6acos(long A);
+extern    long _IQ5acos(long A);
+extern    long _IQ4acos(long A);
+extern    long _IQ3acos(long A);
+extern    long _IQ2acos(long A);
+extern    long _IQ1acos(long A);
+
+#if GLOBAL_Q == 30
+#define   _IQacos(A)  _IQ30acos(A)
+#endif
+#if GLOBAL_Q == 29
+#define   _IQacos(A)  _IQ29acos(A)
+#endif
+#if GLOBAL_Q == 28
+#define   _IQacos(A)  _IQ28acos(A)
+#endif
+#if GLOBAL_Q == 27
+#define   _IQacos(A)  _IQ27acos(A)
+#endif
+#if GLOBAL_Q == 26
+#define   _IQacos(A)  _IQ26acos(A)
+#endif
+#if GLOBAL_Q == 25
+#define   _IQacos(A)  _IQ25acos(A)
+#endif
+#if GLOBAL_Q == 24
+#define   _IQacos(A)  _IQ24acos(A)
+#endif
+#if GLOBAL_Q == 23
+#define   _IQacos(A)  _IQ23acos(A)
+#endif
+#if GLOBAL_Q == 22
+#define   _IQacos(A)  _IQ22acos(A)
+#endif
+#if GLOBAL_Q == 21
+#define   _IQacos(A)  _IQ21acos(A)
+#endif
+#if GLOBAL_Q == 20
+#define   _IQacos(A)  _IQ20acos(A)
+#endif
+#if GLOBAL_Q == 19
+#define   _IQacos(A)  _IQ19acos(A)
+#endif
+#if GLOBAL_Q == 18
+#define   _IQacos(A)  _IQ18acos(A)
+#endif
+#if GLOBAL_Q == 17
+#define   _IQacos(A)  _IQ17acos(A)
+#endif
+#if GLOBAL_Q == 16
+#define   _IQacos(A)  _IQ16acos(A)
+#endif
+#if GLOBAL_Q == 15
+#define   _IQacos(A)  _IQ15acos(A)
+#endif
+#if GLOBAL_Q == 14
+#define   _IQacos(A)  _IQ14acos(A)
+#endif
+#if GLOBAL_Q == 13
+#define   _IQacos(A)  _IQ13acos(A)
+#endif
+#if GLOBAL_Q == 12
+#define   _IQacos(A)  _IQ12acos(A)
+#endif
+#if GLOBAL_Q == 11
+#define   _IQacos(A)  _IQ11acos(A)
+#endif
+#if GLOBAL_Q == 10
+#define   _IQacos(A)  _IQ10acos(A)
+#endif
+#if GLOBAL_Q == 9
+#define   _IQacos(A)  _IQ9acos(A)
+#endif
+#if GLOBAL_Q == 8
+#define   _IQacos(A)  _IQ8acos(A)
+#endif
+#if GLOBAL_Q == 7
+#define   _IQacos(A)  _IQ7acos(A)
+#endif
+#if GLOBAL_Q == 6
+#define   _IQacos(A)  _IQ6acos(A)
+#endif
+#if GLOBAL_Q == 5
+#define   _IQacos(A)  _IQ5acos(A)
+#endif
+#if GLOBAL_Q == 4
+#define   _IQacos(A)  _IQ4acos(A)
+#endif
+#if GLOBAL_Q == 3
+#define   _IQacos(A)  _IQ3acos(A)
+#endif
+#if GLOBAL_Q == 2
+#define   _IQacos(A)  _IQ2acos(A)
+#endif
+#if GLOBAL_Q == 1
+#define   _IQacos(A)  _IQ1acos(A)
 #endif
 //---------------------------------------------------------------------------
 extern    long _IQ30atan2(long A, long B);
@@ -1646,6 +2132,36 @@ extern    long _IQ1atan2PU(long A, long B);
 #define   _IQatan2PU(A,B)  _IQ1atan2PU(A,B)
 #endif
 //---------------------------------------------------------------------------
+#define   _IQ30atan(A)  _IQ30atan2(A,_IQ30(1.0))
+#define   _IQ29atan(A)  _IQ29atan2(A,_IQ29(1.0))
+#define   _IQ28atan(A)  _IQ28atan2(A,_IQ28(1.0))
+#define   _IQ27atan(A)  _IQ27atan2(A,_IQ27(1.0))
+#define   _IQ26atan(A)  _IQ26atan2(A,_IQ26(1.0))
+#define   _IQ25atan(A)  _IQ25atan2(A,_IQ25(1.0))
+#define   _IQ24atan(A)  _IQ24atan2(A,_IQ24(1.0))
+#define   _IQ23atan(A)  _IQ23atan2(A,_IQ23(1.0))
+#define   _IQ22atan(A)  _IQ22atan2(A,_IQ22(1.0))
+#define   _IQ21atan(A)  _IQ21atan2(A,_IQ21(1.0))
+#define   _IQ20atan(A)  _IQ20atan2(A,_IQ20(1.0))
+#define   _IQ19atan(A)  _IQ19atan2(A,_IQ19(1.0))
+#define   _IQ18atan(A)  _IQ18atan2(A,_IQ18(1.0))
+#define   _IQ17atan(A)  _IQ17atan2(A,_IQ17(1.0))
+#define   _IQ16atan(A)  _IQ16atan2(A,_IQ16(1.0))
+#define   _IQ15atan(A)  _IQ15atan2(A,_IQ15(1.0))
+#define   _IQ14atan(A)  _IQ14atan2(A,_IQ14(1.0))
+#define   _IQ13atan(A)  _IQ13atan2(A,_IQ13(1.0))
+#define   _IQ12atan(A)  _IQ12atan2(A,_IQ12(1.0))
+#define   _IQ11atan(A)  _IQ11atan2(A,_IQ11(1.0))
+#define   _IQ10atan(A)  _IQ10atan2(A,_IQ10(1.0))
+#define   _IQ9atan(A)   _IQ9atan2(A,_IQ9(1.0))
+#define   _IQ8atan(A)   _IQ8atan2(A,_IQ8(1.0))
+#define   _IQ7atan(A)   _IQ7atan2(A,_IQ7(1.0))
+#define   _IQ6atan(A)   _IQ6atan2(A,_IQ6(1.0))
+#define   _IQ5atan(A)   _IQ5atan2(A,_IQ5(1.0))
+#define   _IQ4atan(A)   _IQ4atan2(A,_IQ4(1.0))
+#define   _IQ3atan(A)   _IQ3atan2(A,_IQ3(1.0))
+#define   _IQ2atan(A)   _IQ2atan2(A,_IQ2(1.0))
+#define   _IQ1atan(A)   _IQ1atan2(A,_IQ1(1.0))
 #if GLOBAL_Q == 30
 #define   _IQatan(A)  _IQ30atan2(A,_IQ(1.0))
 #endif
@@ -1979,6 +2495,128 @@ extern    long _IQ1isqrt(long A);
 #endif
 #if GLOBAL_Q == 1
 #define   _IQisqrt(A)  _IQ1isqrt(A)
+#endif
+//---------------------------------------------------------------------------
+extern    long _IQ30exp(long A);
+extern    long _IQ29exp(long A);
+extern    long _IQ28exp(long A);
+extern    long _IQ27exp(long A);
+extern    long _IQ26exp(long A);
+extern    long _IQ25exp(long A);
+extern    long _IQ24exp(long A);
+extern    long _IQ23exp(long A);
+extern    long _IQ22exp(long A);
+extern    long _IQ21exp(long A);
+extern    long _IQ20exp(long A);
+extern    long _IQ19exp(long A);
+extern    long _IQ18exp(long A);
+extern    long _IQ17exp(long A);
+extern    long _IQ16exp(long A);
+extern    long _IQ15exp(long A);
+extern    long _IQ14exp(long A);
+extern    long _IQ13exp(long A);
+extern    long _IQ12exp(long A);
+extern    long _IQ11exp(long A);
+extern    long _IQ10exp(long A);
+extern    long _IQ9exp(long A);
+extern    long _IQ8exp(long A);
+extern    long _IQ7exp(long A);
+extern    long _IQ6exp(long A);
+extern    long _IQ5exp(long A);
+extern    long _IQ4exp(long A);
+extern    long _IQ3exp(long A);
+extern    long _IQ2exp(long A);
+extern    long _IQ1exp(long A);
+
+#if GLOBAL_Q == 30
+#define   _IQexp(A)  _IQ30exp(A)
+#endif
+#if GLOBAL_Q == 29
+#define   _IQexp(A)  _IQ29exp(A)
+#endif
+#if GLOBAL_Q == 28
+#define   _IQexp(A)  _IQ28exp(A)
+#endif
+#if GLOBAL_Q == 27
+#define   _IQexp(A)  _IQ27exp(A)
+#endif
+#if GLOBAL_Q == 26
+#define   _IQexp(A)  _IQ26exp(A)
+#endif
+#if GLOBAL_Q == 25
+#define   _IQexp(A)  _IQ25exp(A)
+#endif
+#if GLOBAL_Q == 24
+#define   _IQexp(A)  _IQ24exp(A)
+#endif
+#if GLOBAL_Q == 23
+#define   _IQexp(A)  _IQ23exp(A)
+#endif
+#if GLOBAL_Q == 22
+#define   _IQexp(A)  _IQ22exp(A)
+#endif
+#if GLOBAL_Q == 21
+#define   _IQexp(A)  _IQ21exp(A)
+#endif
+#if GLOBAL_Q == 20
+#define   _IQexp(A)  _IQ20exp(A)
+#endif
+#if GLOBAL_Q == 19
+#define   _IQexp(A)  _IQ19exp(A)
+#endif
+#if GLOBAL_Q == 18
+#define   _IQexp(A)  _IQ18exp(A)
+#endif
+#if GLOBAL_Q == 17
+#define   _IQexp(A)  _IQ17exp(A)
+#endif
+#if GLOBAL_Q == 16
+#define   _IQexp(A)  _IQ16exp(A)
+#endif
+#if GLOBAL_Q == 15
+#define   _IQexp(A)  _IQ15exp(A)
+#endif
+#if GLOBAL_Q == 14
+#define   _IQexp(A)  _IQ14exp(A)
+#endif
+#if GLOBAL_Q == 13
+#define   _IQexp(A)  _IQ13exp(A)
+#endif
+#if GLOBAL_Q == 12
+#define   _IQexp(A)  _IQ12exp(A)
+#endif
+#if GLOBAL_Q == 11
+#define   _IQexp(A)  _IQ11exp(A)
+#endif
+#if GLOBAL_Q == 10
+#define   _IQexp(A)  _IQ10exp(A)
+#endif
+#if GLOBAL_Q == 9
+#define   _IQexp(A)  _IQ9exp(A)
+#endif
+#if GLOBAL_Q == 8
+#define   _IQexp(A)  _IQ8exp(A)
+#endif
+#if GLOBAL_Q == 7
+#define   _IQexp(A)  _IQ7exp(A)
+#endif
+#if GLOBAL_Q == 6
+#define   _IQexp(A)  _IQ6exp(A)
+#endif
+#if GLOBAL_Q == 5
+#define   _IQexp(A)  _IQ5exp(A)
+#endif
+#if GLOBAL_Q == 4
+#define   _IQexp(A)  _IQ4exp(A)
+#endif
+#if GLOBAL_Q == 3
+#define   _IQexp(A)  _IQ3exp(A)
+#endif
+#if GLOBAL_Q == 2
+#define   _IQexp(A)  _IQ2exp(A)
+#endif
+#if GLOBAL_Q == 1
+#define   _IQexp(A)  _IQ1exp(A)
 #endif
 //---------------------------------------------------------------------------
 extern    long _IQ30int(long A);
@@ -2688,6 +3326,162 @@ extern    long _atoIQN(const char *A, long q_value);
 #define   _atoIQ2(A)   _atoIQN(A, 2)
 #define   _atoIQ1(A)   _atoIQN(A, 1)
 //---------------------------------------------------------------------------
+extern    int __IQNtoa(char *A, const char *B, long C, int D);
+extern    int _IQ30toa(char *A, const char *B, long C);
+extern    int _IQ29toa(char *A, const char *B, long C);
+extern    int _IQ28toa(char *A, const char *B, long C);
+extern    int _IQ27toa(char *A, const char *B, long C);
+extern    int _IQ26toa(char *A, const char *B, long C);
+extern    int _IQ25toa(char *A, const char *B, long C);
+extern    int _IQ24toa(char *A, const char *B, long C);
+extern    int _IQ23toa(char *A, const char *B, long C);
+extern    int _IQ22toa(char *A, const char *B, long C);
+extern    int _IQ21toa(char *A, const char *B, long C);
+extern    int _IQ20toa(char *A, const char *B, long C);
+extern    int _IQ19toa(char *A, const char *B, long C);
+extern    int _IQ18toa(char *A, const char *B, long C);
+extern    int _IQ17toa(char *A, const char *B, long C);
+extern    int _IQ16toa(char *A, const char *B, long C);
+extern    int _IQ15toa(char *A, const char *B, long C);
+extern    int _IQ14toa(char *A, const char *B, long C);
+extern    int _IQ13toa(char *A, const char *B, long C);
+extern    int _IQ12toa(char *A, const char *B, long C);
+extern    int _IQ11toa(char *A, const char *B, long C);
+extern    int _IQ10toa(char *A, const char *B, long C);
+extern    int  _IQ9toa(char *A, const char *B, long C);
+extern    int  _IQ8toa(char *A, const char *B, long C);
+extern    int  _IQ7toa(char *A, const char *B, long C);
+extern    int  _IQ6toa(char *A, const char *B, long C);
+extern    int  _IQ5toa(char *A, const char *B, long C);
+extern    int  _IQ4toa(char *A, const char *B, long C);
+extern    int  _IQ3toa(char *A, const char *B, long C);
+extern    int  _IQ2toa(char *A, const char *B, long C);
+extern    int  _IQ1toa(char *A, const char *B, long C);
+
+
+#define   _IQ30toa(A, B, C)   __IQNtoa(A, B, C, 30);
+#define   _IQ29toa(A, B, C)   __IQNtoa(A, B, C, 29);
+#define   _IQ28toa(A, B, C)   __IQNtoa(A, B, C, 28);
+#define   _IQ27toa(A, B, C)   __IQNtoa(A, B, C, 27);
+#define   _IQ26toa(A, B, C)   __IQNtoa(A, B, C, 26);
+#define   _IQ25toa(A, B, C)   __IQNtoa(A, B, C, 25);
+#define   _IQ24toa(A, B, C)   __IQNtoa(A, B, C, 24);
+#define   _IQ23toa(A, B, C)   __IQNtoa(A, B, C, 23);
+#define   _IQ21toa(A, B, C)   __IQNtoa(A, B, C, 21);
+#define   _IQ22toa(A, B, C)   __IQNtoa(A, B, C, 22);
+#define   _IQ20toa(A, B, C)   __IQNtoa(A, B, C, 20);
+#define   _IQ19toa(A, B, C)   __IQNtoa(A, B, C, 19);
+#define   _IQ18toa(A, B, C)   __IQNtoa(A, B, C, 18);
+#define   _IQ17toa(A, B, C)   __IQNtoa(A, B, C, 17);
+#define   _IQ16toa(A, B, C)   __IQNtoa(A, B, C, 16);
+#define   _IQ15toa(A, B, C)   __IQNtoa(A, B, C, 15);
+#define   _IQ14toa(A, B, C)   __IQNtoa(A, B, C, 14);
+#define   _IQ13toa(A, B, C)   __IQNtoa(A, B, C, 13);
+#define   _IQ12toa(A, B, C)   __IQNtoa(A, B, C, 12);
+#define   _IQ11toa(A, B, C)   __IQNtoa(A, B, C, 11);
+#define   _IQ10toa(A, B, C)   __IQNtoa(A, B, C, 10);
+#define   _IQ9toa(A, B, C)    __IQNtoa(A, B, C, 9);
+#define   _IQ8toa(A, B, C)    __IQNtoa(A, B, C, 8);
+#define   _IQ7toa(A, B, C)    __IQNtoa(A, B, C, 7);
+#define   _IQ6toa(A, B, C)    __IQNtoa(A, B, C, 6);
+#define   _IQ5toa(A, B, C)    __IQNtoa(A, B, C, 5);
+#define   _IQ4toa(A, B, C)    __IQNtoa(A, B, C, 4);
+#define   _IQ3toa(A, B, C)    __IQNtoa(A, B, C, 3);
+#define   _IQ2toa(A, B, C)    __IQNtoa(A, B, C, 2);
+#define   _IQ1toa(A, B, C)    __IQNtoa(A, B, C, 1);
+
+
+#if GLOBAL_Q == 30
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 30)
+#endif
+#if GLOBAL_Q == 29
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 29)
+#endif
+#if GLOBAL_Q == 28
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 28)
+#endif
+#if GLOBAL_Q == 27
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 27)
+#endif
+#if GLOBAL_Q == 26
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 26)
+#endif
+#if GLOBAL_Q == 25
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 25)
+#endif
+#if GLOBAL_Q == 24
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 24)
+#endif
+#if GLOBAL_Q == 23
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 23)
+#endif
+#if GLOBAL_Q == 22
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 22)
+#endif
+#if GLOBAL_Q == 21
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 21)
+#endif
+#if GLOBAL_Q == 20
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 20)
+#endif
+#if GLOBAL_Q == 19
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 19)
+#endif
+#if GLOBAL_Q == 18
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 18)
+#endif
+#if GLOBAL_Q == 17
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 17)
+#endif
+#if GLOBAL_Q == 16
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 16)
+#endif
+#if GLOBAL_Q == 15
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 15)
+#endif
+#if GLOBAL_Q == 14
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 14)
+#endif
+#if GLOBAL_Q == 13
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 13)
+#endif
+#if GLOBAL_Q == 12
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 12)
+#endif
+#if GLOBAL_Q == 11
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 11)
+#endif
+#if GLOBAL_Q == 10
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 10)
+#endif
+#if GLOBAL_Q == 9
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 9)
+#endif
+#if GLOBAL_Q == 8
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 8)
+#endif
+#if GLOBAL_Q == 7
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 7)
+#endif
+#if GLOBAL_Q == 6
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 6)
+#endif
+#if GLOBAL_Q == 5
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 5)
+#endif
+#if GLOBAL_Q == 4
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 4)
+#endif
+#if GLOBAL_Q == 3
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 3)
+#endif
+#if GLOBAL_Q == 2
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 2)
+#endif
+#if GLOBAL_Q == 1
+#define   _IQtoa(A, B, C)     __IQNtoa(A, B, C, 1)
+#endif
+//---------------------------------------------------------------------------
 #define   _IQabs(A)    labs(A)
 #define   _IQ30abs(A)  labs(A)
 #define   _IQ29abs(A)  labs(A)
@@ -2719,6 +3513,128 @@ extern    long _atoIQN(const char *A, long q_value);
 #define   _IQ3abs(A)   labs(A)
 #define   _IQ2abs(A)   labs(A)
 #define   _IQ1abs(A)   labs(A)
+//---------------------------------------------------------------------------
+extern    long _IQ30log(long A);
+extern    long _IQ29log(long A);
+extern    long _IQ28log(long A);
+extern    long _IQ27log(long A);
+extern    long _IQ26log(long A);
+extern    long _IQ25log(long A);
+extern    long _IQ24log(long A);
+extern    long _IQ23log(long A);
+extern    long _IQ22log(long A);
+extern    long _IQ21log(long A);
+extern    long _IQ20log(long A);
+extern    long _IQ19log(long A);
+extern    long _IQ18log(long A);
+extern    long _IQ17log(long A);
+extern    long _IQ16log(long A);
+extern    long _IQ15log(long A);
+extern    long _IQ14log(long A);
+extern    long _IQ13log(long A);
+extern    long _IQ12log(long A);
+extern    long _IQ11log(long A);
+extern    long _IQ10log(long A);
+extern    long _IQ9log(long A);
+extern    long _IQ8log(long A);
+extern    long _IQ7log(long A);
+extern    long _IQ6log(long A);
+extern    long _IQ5log(long A);
+extern    long _IQ4log(long A);
+extern    long _IQ3log(long A);
+extern    long _IQ2log(long A);
+extern    long _IQ1log(long A);
+
+#if GLOBAL_Q == 30
+#define   _IQlog(A)  _IQ30log(A)
+#endif
+#if GLOBAL_Q == 29
+#define   _IQlog(A)  _IQ29log(A)
+#endif
+#if GLOBAL_Q == 28
+#define   _IQlog(A)  _IQ28log(A)
+#endif
+#if GLOBAL_Q == 27
+#define   _IQlog(A)  _IQ27log(A)
+#endif
+#if GLOBAL_Q == 26
+#define   _IQlog(A)  _IQ26log(A)
+#endif
+#if GLOBAL_Q == 25
+#define   _IQlog(A)  _IQ25log(A)
+#endif
+#if GLOBAL_Q == 24
+#define   _IQlog(A)  _IQ24log(A)
+#endif
+#if GLOBAL_Q == 23
+#define   _IQlog(A)  _IQ23log(A)
+#endif
+#if GLOBAL_Q == 22
+#define   _IQlog(A)  _IQ22log(A)
+#endif
+#if GLOBAL_Q == 21
+#define   _IQlog(A)  _IQ21log(A)
+#endif
+#if GLOBAL_Q == 20
+#define   _IQlog(A)  _IQ20log(A)
+#endif
+#if GLOBAL_Q == 19
+#define   _IQlog(A)  _IQ19log(A)
+#endif
+#if GLOBAL_Q == 18
+#define   _IQlog(A)  _IQ18log(A)
+#endif
+#if GLOBAL_Q == 17
+#define   _IQlog(A)  _IQ17log(A)
+#endif
+#if GLOBAL_Q == 16
+#define   _IQlog(A)  _IQ16log(A)
+#endif
+#if GLOBAL_Q == 15
+#define   _IQlog(A)  _IQ15log(A)
+#endif
+#if GLOBAL_Q == 14
+#define   _IQlog(A)  _IQ14log(A)
+#endif
+#if GLOBAL_Q == 13
+#define   _IQlog(A)  _IQ13log(A)
+#endif
+#if GLOBAL_Q == 12
+#define   _IQlog(A)  _IQ12log(A)
+#endif
+#if GLOBAL_Q == 11
+#define   _IQlog(A)  _IQ11log(A)
+#endif
+#if GLOBAL_Q == 10
+#define   _IQlog(A)  _IQ10log(A)
+#endif
+#if GLOBAL_Q == 9
+#define   _IQlog(A)  _IQ9log(A)
+#endif
+#if GLOBAL_Q == 8
+#define   _IQlog(A)  _IQ8log(A)
+#endif
+#if GLOBAL_Q == 7
+#define   _IQlog(A)  _IQ7log(A)
+#endif
+#if GLOBAL_Q == 6
+#define   _IQlog(A)  _IQ6log(A)
+#endif
+#if GLOBAL_Q == 5
+#define   _IQlog(A)  _IQ5log(A)
+#endif
+#if GLOBAL_Q == 4
+#define   _IQlog(A)  _IQ4log(A)
+#endif
+#if GLOBAL_Q == 3
+#define   _IQlog(A)  _IQ3log(A)
+#endif
+#if GLOBAL_Q == 2
+#define   _IQlog(A)  _IQ2log(A)
+#endif
+#if GLOBAL_Q == 1
+#define   _IQlog(A)  _IQ1log(A)
+#endif
 //###########################################################################
 #else   // MATH_TYPE == FLOAT_MATH
 //###########################################################################
@@ -2756,6 +3672,21 @@ typedef   float   _iq4;
 typedef   float   _iq3;
 typedef   float   _iq2;
 typedef   float   _iq1;
+
+//---------------------------------------------------------------------------
+#define _IQmpy2(A)          ((A)*2.0)
+#define _IQmpy4(A)          ((A)*4.0)
+#define _IQmpy8(A)          ((A)*8.0)
+#define _IQmpy16(A)         ((A)*16.0)
+#define _IQmpy32(A)         ((A)*32.0)
+#define _IQmpy64(A)         ((A)*64.0)
+
+#define _IQdiv2(A)          ((A)*0.5)
+#define _IQdiv4(A)          ((A)*0.25)
+#define _IQdiv8(A)          ((A)*0.125)
+#define _IQdiv16(A)         ((A)*0.0625)
+#define _IQdiv32(A)         ((A)*0.03125)
+#define _IQdiv64(A)         ((A)*0.015625)
 //---------------------------------------------------------------------------
 #define   _IQ(A)         (A)
 #define   _IQ30(A)       (A)
@@ -2820,8 +3751,12 @@ typedef   float   _iq1;
 #define   _IQ2toF(A)     (A)
 #define   _IQ1toF(A)     (A)
 //---------------------------------------------------------------------------
-extern  float _satf(float A, float Pos, float Neg);
-#define   _IQsat(A, Pos, Neg)    _satf(A, Pos, Neg)
+//extern  float _satf(float A, float Pos, float Neg);
+//#define   _IQsat(A, Pos, Neg)    _satf(A, Pos, Neg)
+//
+// The following define requires codegen tools V5.2.2 or later
+//
+#define   _IQsat(A, Pos, Neg)  (__fmax(((__fmin((A),(Pos)))),(Neg)))
 //---------------------------------------------------------------------------
 #define   _IQtoIQ30(A)   (A)
 #define   _IQtoIQ29(A)   (A)
@@ -2885,21 +3820,21 @@ extern  float _satf(float A, float Pos, float Neg);
 #define   _IQ2toIQ(A)    (A)
 #define   _IQ1toIQ(A)    (A)
 //---------------------------------------------------------------------------
-#define   _IQtoQ15(A)    (short) ((long)((A) * 32768.0L))
-#define   _IQtoQ14(A)    (short) ((long)((A) * 16384.0L))
-#define   _IQtoQ13(A)    (short) ((long)((A) * 8192.0L))
-#define   _IQtoQ12(A)    (short) ((long)((A) * 4096.0L))
-#define   _IQtoQ11(A)    (short) ((long)((A) * 2048.0L))
-#define   _IQtoQ10(A)    (short) ((long)((A) * 1024.0L))
-#define   _IQtoQ9(A)     (short) ((long)((A) * 512.0L))
-#define   _IQtoQ8(A)     (short) ((long)((A) * 256.0L))
-#define   _IQtoQ7(A)     (short) ((long)((A) * 128.0L))
-#define   _IQtoQ6(A)     (short) ((long)((A) * 64.0L))
-#define   _IQtoQ5(A)     (short) ((long)((A) * 32.0L))
-#define   _IQtoQ4(A)     (short) ((long)((A) * 16.0L))
-#define   _IQtoQ3(A)     (short) ((long)((A) * 8.0L))
-#define   _IQtoQ2(A)     (short) ((long)((A) * 4.0L))
-#define   _IQtoQ1(A)     (short) ((long)((A) * 2.0L))
+#define   _IQtoQ15(A)    (int) ((A) * 32768.0)
+#define   _IQtoQ14(A)    (int) ((A) * 16384.0)
+#define   _IQtoQ13(A)    (int) ((A) * 8192.0)
+#define   _IQtoQ12(A)    (int) ((A) * 4096.0)
+#define   _IQtoQ11(A)    (int) ((A) * 2048.0)
+#define   _IQtoQ10(A)    (int) ((A) * 1024.0)
+#define   _IQtoQ9(A)     (int) ((A) * 512.0)
+#define   _IQtoQ8(A)     (int) ((A) * 256.0)
+#define   _IQtoQ7(A)     (int) ((A) * 128.0)
+#define   _IQtoQ6(A)     (int) ((A) * 64.0)
+#define   _IQtoQ5(A)     (int) ((A) * 32.0)
+#define   _IQtoQ4(A)     (int) ((A) * 16.0)
+#define   _IQtoQ3(A)     (int) ((A) * 8.0)
+#define   _IQtoQ2(A)     (int) ((A) * 4.0)
+#define   _IQtoQ1(A)     (int) ((A) * 2.0)
 
 //---------------------------------------------------------------------------
 #define   _Q15toIQ(A)    (((float) (A)) * 0.000030518)
@@ -3014,37 +3949,37 @@ extern  float _satf(float A, float Pos, float Neg);
 #define   _IQ2rsmpy(A,B)      ((A) * (B))
 #define   _IQ1rsmpy(A,B)      ((A) * (B))
 //---------------------------------------------------------------------------
-#define   _IQdiv(A,B)         ((A) / (B))
-#define   _IQ30div(A,B)       ((A) / (B))
-#define   _IQ29div(A,B)       ((A) / (B))
-#define   _IQ28div(A,B)       ((A) / (B))
-#define   _IQ27div(A,B)       ((A) / (B))
-#define   _IQ26div(A,B)       ((A) / (B))
-#define   _IQ25div(A,B)       ((A) / (B))
-#define   _IQ24div(A,B)       ((A) / (B))
-#define   _IQ23div(A,B)       ((A) / (B))
-#define   _IQ22div(A,B)       ((A) / (B))
-#define   _IQ21div(A,B)       ((A) / (B))
-#define   _IQ20div(A,B)       ((A) / (B))
-#define   _IQ19div(A,B)       ((A) / (B))
-#define   _IQ18div(A,B)       ((A) / (B))
-#define   _IQ17div(A,B)       ((A) / (B))
-#define   _IQ16div(A,B)       ((A) / (B))
-#define   _IQ15div(A,B)       ((A) / (B))
-#define   _IQ14div(A,B)       ((A) / (B))
-#define   _IQ13div(A,B)       ((A) / (B))
-#define   _IQ12div(A,B)       ((A) / (B))
-#define   _IQ11div(A,B)       ((A) / (B))
-#define   _IQ10div(A,B)       ((A) / (B))
-#define   _IQ9div(A,B)        ((A) / (B))
-#define   _IQ8div(A,B)        ((A) / (B))
-#define   _IQ7div(A,B)        ((A) / (B))
-#define   _IQ6div(A,B)        ((A) / (B))
-#define   _IQ5div(A,B)        ((A) / (B))
-#define   _IQ4div(A,B)        ((A) / (B))
-#define   _IQ3div(A,B)        ((A) / (B))
-#define   _IQ2div(A,B)        ((A) / (B))
-#define   _IQ1div(A,B)        ((A) / (B))
+#define   _IQdiv(A,B)         ((float)(A) / (float)(B))
+#define   _IQ30div(A,B)       ((float)(A) / (float)(B))
+#define   _IQ29div(A,B)       ((float)(A) / (float)(B))
+#define   _IQ28div(A,B)       ((float)(A) / (float)(B))
+#define   _IQ27div(A,B)       ((float)(A) / (float)(B))
+#define   _IQ26div(A,B)       ((float)(A) / (float)(B))
+#define   _IQ25div(A,B)       ((float)(A) / (float)(B))
+#define   _IQ24div(A,B)       ((float)(A) / (float)(B))
+#define   _IQ23div(A,B)       ((float)(A) / (float)(B))
+#define   _IQ22div(A,B)       ((float)(A) / (float)(B))
+#define   _IQ21div(A,B)       ((float)(A) / (float)(B))
+#define   _IQ20div(A,B)       ((float)(A) / (float)(B))
+#define   _IQ19div(A,B)       ((float)(A) / (float)(B))
+#define   _IQ18div(A,B)       ((float)(A) / (float)(B))
+#define   _IQ17div(A,B)       ((float)(A) / (float)(B))
+#define   _IQ16div(A,B)       ((float)(A) / (float)(B))
+#define   _IQ15div(A,B)       ((float)(A) / (float)(B))
+#define   _IQ14div(A,B)       ((float)(A) / (float)(B))
+#define   _IQ13div(A,B)       ((float)(A) / (float)(B))
+#define   _IQ12div(A,B)       ((float)(A) / (float)(B))
+#define   _IQ11div(A,B)       ((float)(A) / (float)(B))
+#define   _IQ10div(A,B)       ((float)(A) / (float)(B))
+#define   _IQ9div(A,B)        ((float)(A) / (float)(B))
+#define   _IQ8div(A,B)        ((float)(A) / (float)(B))
+#define   _IQ7div(A,B)        ((float)(A) / (float)(B))
+#define   _IQ6div(A,B)        ((float)(A) / (float)(B))
+#define   _IQ5div(A,B)        ((float)(A) / (float)(B))
+#define   _IQ4div(A,B)        ((float)(A) / (float)(B))
+#define   _IQ3div(A,B)        ((float)(A) / (float)(B))
+#define   _IQ2div(A,B)        ((float)(A) / (float)(B))
+#define   _IQ1div(A,B)        ((float)(A) / (float)(B))
 //---------------------------------------------------------------------------
 #define   _IQsin(A)           sin(A)
 #define   _IQ30sin(A)         sin(A)
@@ -3110,6 +4045,37 @@ extern  float _satf(float A, float Pos, float Neg);
 #define   _IQ2sinPU(A)        sin((A)*6.283185307)
 #define   _IQ1sinPU(A)        sin((A)*6.283185307)
 //---------------------------------------------------------------------------
+#define   _IQasin(A)          asin(A)
+#define   _IQ29asin(A)        asin(A)
+#define   _IQ28asin(A)        asin(A)
+#define   _IQ27asin(A)        asin(A)
+#define   _IQ26asin(A)        asin(A)
+#define   _IQ25asin(A)        asin(A)
+#define   _IQ24asin(A)        asin(A)
+#define   _IQ23asin(A)        asin(A)
+#define   _IQ22asin(A)        asin(A)
+#define   _IQ21asin(A)        asin(A)
+#define   _IQ20asin(A)        asin(A)
+#define   _IQ19asin(A)        asin(A)
+#define   _IQ18asin(A)        asin(A)
+#define   _IQ17asin(A)        asin(A)
+#define   _IQ16asin(A)        asin(A)
+#define   _IQ15asin(A)        asin(A)
+#define   _IQ14asin(A)        asin(A)
+#define   _IQ13asin(A)        asin(A)
+#define   _IQ12asin(A)        asin(A)
+#define   _IQ11asin(A)        asin(A)
+#define   _IQ10asin(A)        asin(A)
+#define   _IQ9asin(A)         asin(A)
+#define   _IQ8asin(A)         asin(A)
+#define   _IQ7asin(A)         asin(A)
+#define   _IQ6asin(A)         asin(A)
+#define   _IQ5asin(A)         asin(A)
+#define   _IQ4asin(A)         asin(A)
+#define   _IQ3asin(A)         asin(A)
+#define   _IQ2asin(A)         asin(A)
+#define   _IQ1asin(A)         asin(A)
+//---------------------------------------------------------------------------
 #define   _IQcos(A)           cos(A)
 #define   _IQ30cos(A)         cos(A)
 #define   _IQ29cos(A)         cos(A)
@@ -3173,6 +4139,37 @@ extern  float _satf(float A, float Pos, float Neg);
 #define   _IQ3cosPU(A)        cos((A)*6.283185307)
 #define   _IQ2cosPU(A)        cos((A)*6.283185307)
 #define   _IQ1cosPU(A)        cos((A)*6.283185307)
+//---------------------------------------------------------------------------
+#define   _IQacos(A)          acos(A)
+#define   _IQ29acos(A)        acos(A)
+#define   _IQ28acos(A)        acos(A)
+#define   _IQ27acos(A)        acos(A)
+#define   _IQ26acos(A)        acos(A)
+#define   _IQ25acos(A)        acos(A)
+#define   _IQ24acos(A)        acos(A)
+#define   _IQ23acos(A)        acos(A)
+#define   _IQ22acos(A)        acos(A)
+#define   _IQ21acos(A)        acos(A)
+#define   _IQ20acos(A)        acos(A)
+#define   _IQ19acos(A)        acos(A)
+#define   _IQ18acos(A)        acos(A)
+#define   _IQ17acos(A)        acos(A)
+#define   _IQ16acos(A)        acos(A)
+#define   _IQ15acos(A)        acos(A)
+#define   _IQ14acos(A)        acos(A)
+#define   _IQ13acos(A)        acos(A)
+#define   _IQ12acos(A)        acos(A)
+#define   _IQ11acos(A)        acos(A)
+#define   _IQ10acos(A)        acos(A)
+#define   _IQ9acos(A)         acos(A)
+#define   _IQ8acos(A)         acos(A)
+#define   _IQ7acos(A)         acos(A)
+#define   _IQ6acos(A)         acos(A)
+#define   _IQ5acos(A)         acos(A)
+#define   _IQ4acos(A)         acos(A)
+#define   _IQ3acos(A)         acos(A)
+#define   _IQ2acos(A)         acos(A)
+#define   _IQ1acos(A)         acos(A)
 //---------------------------------------------------------------------------
 #define   _IQatan(A)          atan(A)
 #define   _IQ30atan(A)        atan(A)
@@ -3238,37 +4235,37 @@ extern  float _satf(float A, float Pos, float Neg);
 #define   _IQ2atan2(A,B)      atan2(A,B)
 #define   _IQ1atan2(A,B)      atan2(A,B)
 //---------------------------------------------------------------------------
-#define   _IQatan2PU(A,B)     ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ30atan2PU(A,B)   ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ29atan2PU(A,B)   ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ28atan2PU(A,B)   ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ27atan2PU(A,B)   ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ26atan2PU(A,B)   ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ25atan2PU(A,B)   ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ24atan2PU(A,B)   ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ23atan2PU(A,B)   ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ22atan2PU(A,B)   ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ21atan2PU(A,B)   ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ20atan2PU(A,B)   ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ19atan2PU(A,B)   ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ18atan2PU(A,B)   ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ17atan2PU(A,B)   ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ16atan2PU(A,B)   ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ15atan2PU(A,B)   ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ14atan2PU(A,B)   ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ13atan2PU(A,B)   ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ12atan2PU(A,B)   ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ11atan2PU(A,B)   ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ10atan2PU(A,B)   ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ9atan2PU(A,B)    ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ8atan2PU(A,B)    ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ7atan2PU(A,B)    ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ6atan2PU(A,B)    ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ5atan2PU(A,B)    ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ4atan2PU(A,B)    ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ3atan2PU(A,B)    ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ2atan2PU(A,B)    ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
-#define   _IQ1atan2PU(A,B)    ((atan2(A,B)/6.283185307) >= 0.0 ? (atan2(A,B)/6.283185307):1.0 + (atan2(A,B)/6.283185307))
+#define   _IQatan2PU(A,B)     ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ30atan2PU(A,B)   ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ29atan2PU(A,B)   ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ28atan2PU(A,B)   ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ27atan2PU(A,B)   ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ26atan2PU(A,B)   ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ25atan2PU(A,B)   ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ24atan2PU(A,B)   ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ23atan2PU(A,B)   ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ22atan2PU(A,B)   ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ21atan2PU(A,B)   ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ20atan2PU(A,B)   ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ19atan2PU(A,B)   ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ18atan2PU(A,B)   ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ17atan2PU(A,B)   ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ16atan2PU(A,B)   ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ15atan2PU(A,B)   ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ14atan2PU(A,B)   ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ13atan2PU(A,B)   ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ12atan2PU(A,B)   ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ11atan2PU(A,B)   ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ10atan2PU(A,B)   ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ9atan2PU(A,B)    ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ8atan2PU(A,B)    ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ7atan2PU(A,B)    ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ6atan2PU(A,B)    ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ5atan2PU(A,B)    ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ4atan2PU(A,B)    ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ3atan2PU(A,B)    ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ2atan2PU(A,B)    ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
+#define   _IQ1atan2PU(A,B)    ((atan2(A,B)*(1.0/6.283185307)) >= 0.0 ? (atan2(A,B)*(1.0/6.283185307)):1.0 + (atan2(A,B)*(1.0/6.283185307)))
 //---------------------------------------------------------------------------
 #define   _IQsqrt(A)          sqrt(A)
 #define   _IQ30sqrt(A)        sqrt(A)
@@ -3334,6 +4331,38 @@ extern  float _satf(float A, float Pos, float Neg);
 #define   _IQ2isqrt(A)        (1.0/sqrt(A))
 #define   _IQ1isqrt(A)        (1.0/sqrt(A))
 //---------------------------------------------------------------------------
+#define   _IQexp(A)           exp(A)
+#define   _IQ30exp(A)         exp(A)
+#define   _IQ29exp(A)         exp(A)
+#define   _IQ28exp(A)         exp(A)
+#define   _IQ27exp(A)         exp(A)
+#define   _IQ26exp(A)         exp(A)
+#define   _IQ25exp(A)         exp(A)
+#define   _IQ24exp(A)         exp(A)
+#define   _IQ23exp(A)         exp(A)
+#define   _IQ22exp(A)         exp(A)
+#define   _IQ21exp(A)         exp(A)
+#define   _IQ20exp(A)         exp(A)
+#define   _IQ19exp(A)         exp(A)
+#define   _IQ18exp(A)         exp(A)
+#define   _IQ17exp(A)         exp(A)
+#define   _IQ16exp(A)         exp(A)
+#define   _IQ15exp(A)         exp(A)
+#define   _IQ14exp(A)         exp(A)
+#define   _IQ13exp(A)         exp(A)
+#define   _IQ12exp(A)         exp(A)
+#define   _IQ11exp(A)         exp(A)
+#define   _IQ10exp(A)         exp(A)
+#define   _IQ9exp(A)          exp(A)
+#define   _IQ8exp(A)          exp(A)
+#define   _IQ7exp(A)          exp(A)
+#define   _IQ6exp(A)          exp(A)
+#define   _IQ5exp(A)          exp(A)
+#define   _IQ4exp(A)          exp(A)
+#define   _IQ3exp(A)          exp(A)
+#define   _IQ2exp(A)          exp(A)
+#define   _IQ1exp(A)          exp(A)
+//---------------------------------------------------------------------------
 #define   _IQint(A)           ((long) (A))
 #define   _IQ30int(A)         ((long) (A))
 #define   _IQ29int(A)         ((long) (A))
@@ -3398,39 +4427,39 @@ extern  float _satf(float A, float Pos, float Neg);
 #define   _IQ2frac(A)         ((A) - (float)((long) (A)))
 #define   _IQ1frac(A)         ((A) - (float)((long) (A)))
 //---------------------------------------------------------------------------
-#define   _IQmpyIQX(A, IQA, B, IQB)    ((A)*(B))    
-#define   _IQ30mpyIQX(A, IQA, B, IQB)  ((A)*(B))    
-#define   _IQ29mpyIQX(A, IQA, B, IQB)  ((A)*(B))    
-#define   _IQ28mpyIQX(A, IQA, B, IQB)  ((A)*(B))    
-#define   _IQ27mpyIQX(A, IQA, B, IQB)  ((A)*(B))    
-#define   _IQ26mpyIQX(A, IQA, B, IQB)  ((A)*(B))    
-#define   _IQ25mpyIQX(A, IQA, B, IQB)  ((A)*(B))    
-#define   _IQ24mpyIQX(A, IQA, B, IQB)  ((A)*(B))    
-#define   _IQ23mpyIQX(A, IQA, B, IQB)  ((A)*(B))    
-#define   _IQ22mpyIQX(A, IQA, B, IQB)  ((A)*(B))    
-#define   _IQ21mpyIQX(A, IQA, B, IQB)  ((A)*(B))    
-#define   _IQ20mpyIQX(A, IQA, B, IQB)  ((A)*(B))    
-#define   _IQ19mpyIQX(A, IQA, B, IQB)  ((A)*(B))    
-#define   _IQ18mpyIQX(A, IQA, B, IQB)  ((A)*(B))    
-#define   _IQ17mpyIQX(A, IQA, B, IQB)  ((A)*(B))    
-#define   _IQ16mpyIQX(A, IQA, B, IQB)  ((A)*(B))    
-#define   _IQ15mpyIQX(A, IQA, B, IQB)  ((A)*(B))    
-#define   _IQ14mpyIQX(A, IQA, B, IQB)  ((A)*(B))    
-#define   _IQ13mpyIQX(A, IQA, B, IQB)  ((A)*(B))    
-#define   _IQ12mpyIQX(A, IQA, B, IQB)  ((A)*(B))    
-#define   _IQ11mpyIQX(A, IQA, B, IQB)  ((A)*(B))    
-#define   _IQ10mpyIQX(A, IQA, B, IQB)  ((A)*(B))    
-#define   _IQ9mpyIQX(A, IQA, B, IQB)   ((A)*(B))    
-#define   _IQ8mpyIQX(A, IQA, B, IQB)   ((A)*(B))    
-#define   _IQ7mpyIQX(A, IQA, B, IQB)   ((A)*(B))    
-#define   _IQ6mpyIQX(A, IQA, B, IQB)   ((A)*(B))    
-#define   _IQ5mpyIQX(A, IQA, B, IQB)   ((A)*(B))    
-#define   _IQ4mpyIQX(A, IQA, B, IQB)   ((A)*(B))    
-#define   _IQ3mpyIQX(A, IQA, B, IQB)   ((A)*(B))    
-#define   _IQ2mpyIQX(A, IQA, B, IQB)   ((A)*(B))    
-#define   _IQ1mpyIQX(A, IQA, B, IQB)   ((A)*(B))    
+#define   _IQmpyIQX(A, IQA, B, IQB)    ((A)*(B))
+#define   _IQ30mpyIQX(A, IQA, B, IQB)  ((A)*(B))
+#define   _IQ29mpyIQX(A, IQA, B, IQB)  ((A)*(B))
+#define   _IQ28mpyIQX(A, IQA, B, IQB)  ((A)*(B))
+#define   _IQ27mpyIQX(A, IQA, B, IQB)  ((A)*(B))
+#define   _IQ26mpyIQX(A, IQA, B, IQB)  ((A)*(B))
+#define   _IQ25mpyIQX(A, IQA, B, IQB)  ((A)*(B))
+#define   _IQ24mpyIQX(A, IQA, B, IQB)  ((A)*(B))
+#define   _IQ23mpyIQX(A, IQA, B, IQB)  ((A)*(B))
+#define   _IQ22mpyIQX(A, IQA, B, IQB)  ((A)*(B))
+#define   _IQ21mpyIQX(A, IQA, B, IQB)  ((A)*(B))
+#define   _IQ20mpyIQX(A, IQA, B, IQB)  ((A)*(B))
+#define   _IQ19mpyIQX(A, IQA, B, IQB)  ((A)*(B))
+#define   _IQ18mpyIQX(A, IQA, B, IQB)  ((A)*(B))
+#define   _IQ17mpyIQX(A, IQA, B, IQB)  ((A)*(B))
+#define   _IQ16mpyIQX(A, IQA, B, IQB)  ((A)*(B))
+#define   _IQ15mpyIQX(A, IQA, B, IQB)  ((A)*(B))
+#define   _IQ14mpyIQX(A, IQA, B, IQB)  ((A)*(B))
+#define   _IQ13mpyIQX(A, IQA, B, IQB)  ((A)*(B))
+#define   _IQ12mpyIQX(A, IQA, B, IQB)  ((A)*(B))
+#define   _IQ11mpyIQX(A, IQA, B, IQB)  ((A)*(B))
+#define   _IQ10mpyIQX(A, IQA, B, IQB)  ((A)*(B))
+#define   _IQ9mpyIQX(A, IQA, B, IQB)   ((A)*(B))
+#define   _IQ8mpyIQX(A, IQA, B, IQB)   ((A)*(B))
+#define   _IQ7mpyIQX(A, IQA, B, IQB)   ((A)*(B))
+#define   _IQ6mpyIQX(A, IQA, B, IQB)   ((A)*(B))
+#define   _IQ5mpyIQX(A, IQA, B, IQB)   ((A)*(B))
+#define   _IQ4mpyIQX(A, IQA, B, IQB)   ((A)*(B))
+#define   _IQ3mpyIQX(A, IQA, B, IQB)   ((A)*(B))
+#define   _IQ2mpyIQX(A, IQA, B, IQB)   ((A)*(B))
+#define   _IQ1mpyIQX(A, IQA, B, IQB)   ((A)*(B))
 //---------------------------------------------------------------------------
-#define   _IQmpyI32(A,B)      ((A) * (float) (B))    
+#define   _IQmpyI32(A,B)      ((A) * (float) (B))
 #define   _IQ30mpyI32(A,B)    ((A) * (float) (B))
 #define   _IQ29mpyI32(A,B)    ((A) * (float) (B))
 #define   _IQ28mpyI32(A,B)    ((A) * (float) (B))
@@ -3589,6 +4618,102 @@ extern  float _satf(float A, float Pos, float Neg);
 #define   _atoIQ3(A)          atof(A)
 #define   _atoIQ2(A)          atof(A)
 #define   _atoIQ1(A)          atof(A)
+//---------------------------------------------------------------------------
+#define   _IQtoa(A, B, C)     sprintf(A, B, C)
+#define   _IQ30toa(A, B, C)   sprintf(A, B, C)
+#define   _IQ29toa(A, B, C)   sprintf(A, B, C)
+#define   _IQ28toa(A, B, C)   sprintf(A, B, C)
+#define   _IQ27toa(A, B, C)   sprintf(A, B, C)
+#define   _IQ26toa(A, B, C)   sprintf(A, B, C)
+#define   _IQ25toa(A, B, C)   sprintf(A, B, C)
+#define   _IQ24toa(A, B, C)   sprintf(A, B, C)
+#define   _IQ23toa(A, B, C)   sprintf(A, B, C)
+#define   _IQ22toa(A, B, C)   sprintf(A, B, C)
+#define   _IQ21toa(A, B, C)   sprintf(A, B, C)
+#define   _IQ20toa(A, B, C)   sprintf(A, B, C)
+#define   _IQ19toa(A, B, C)   sprintf(A, B, C)
+#define   _IQ18toa(A, B, C)   sprintf(A, B, C)
+#define   _IQ17toa(A, B, C)   sprintf(A, B, C)
+#define   _IQ16toa(A, B, C)   sprintf(A, B, C)
+#define   _IQ15toa(A, B, C)   sprintf(A, B, C)
+#define   _IQ14toa(A, B, C)   sprintf(A, B, C)
+#define   _IQ13toa(A, B, C)   sprintf(A, B, C)
+#define   _IQ12toa(A, B, C)   sprintf(A, B, C)
+#define   _IQ11toa(A, B, C)   sprintf(A, B, C)
+#define   _IQ10toa(A, B, C)   sprintf(A, B, C)
+#define   _IQ9toa(A, B, C)    sprintf(A, B, C)
+#define   _IQ8toa(A, B, C)    sprintf(A, B, C)
+#define   _IQ7toa(A, B, C)    sprintf(A, B, C)
+#define   _IQ6toa(A, B, C)    sprintf(A, B, C)
+#define   _IQ5toa(A, B, C)    sprintf(A, B, C)
+#define   _IQ4toa(A, B, C)    sprintf(A, B, C)
+#define   _IQ3toa(A, B, C)    sprintf(A, B, C)
+#define   _IQ2toa(A, B, C)    sprintf(A, B, C)
+#define   _IQ1toa(A, B, C)    sprintf(A, B, C)
+//---------------------------------------------------------------------------
+#define   _IQabs(A)    fabs(A)
+#define   _IQ30abs(A)  fabs(A)
+#define   _IQ29abs(A)  fabs(A)
+#define   _IQ28abs(A)  fabs(A)
+#define   _IQ27abs(A)  fabs(A)
+#define   _IQ26abs(A)  fabs(A)
+#define   _IQ25abs(A)  fabs(A)
+#define   _IQ24abs(A)  fabs(A)
+#define   _IQ23abs(A)  fabs(A)
+#define   _IQ22abs(A)  fabs(A)
+#define   _IQ21abs(A)  fabs(A)
+#define   _IQ20abs(A)  fabs(A)
+#define   _IQ19abs(A)  fabs(A)
+#define   _IQ18abs(A)  fabs(A)
+#define   _IQ17abs(A)  fabs(A)
+#define   _IQ16abs(A)  fabs(A)
+#define   _IQ15abs(A)  fabs(A)
+#define   _IQ14abs(A)  fabs(A)
+#define   _IQ13abs(A)  fabs(A)
+#define   _IQ12abs(A)  fabs(A)
+#define   _IQ11abs(A)  fabs(A)
+#define   _IQ10abs(A)  fabs(A)
+#define   _IQ9abs(A)   fabs(A)
+#define   _IQ8abs(A)   fabs(A)
+#define   _IQ7abs(A)   fabs(A)
+#define   _IQ6abs(A)   fabs(A)
+#define   _IQ5abs(A)   fabs(A)
+#define   _IQ4abs(A)   fabs(A)
+#define   _IQ3abs(A)   fabs(A)
+#define   _IQ2abs(A)   fabs(A)
+#define   _IQ1abs(A)   fabs(A)
+//---------------------------------------------------------------------------
+#define   _IQlog(A)           log(A)
+#define   _IQ30log(A)         log(A)
+#define   _IQ29log(A)         log(A)
+#define   _IQ28log(A)         log(A)
+#define   _IQ27log(A)         log(A)
+#define   _IQ26log(A)         log(A)
+#define   _IQ25log(A)         log(A)
+#define   _IQ24log(A)         log(A)
+#define   _IQ23log(A)         log(A)
+#define   _IQ22log(A)         log(A)
+#define   _IQ21log(A)         log(A)
+#define   _IQ20log(A)         log(A)
+#define   _IQ19log(A)         log(A)
+#define   _IQ18log(A)         log(A)
+#define   _IQ17log(A)         log(A)
+#define   _IQ16log(A)         log(A)
+#define   _IQ15log(A)         log(A)
+#define   _IQ14log(A)         log(A)
+#define   _IQ13log(A)         log(A)
+#define   _IQ12log(A)         log(A)
+#define   _IQ11log(A)         log(A)
+#define   _IQ10log(A)         log(A)
+#define   _IQ9log(A)          log(A)
+#define   _IQ8log(A)          log(A)
+#define   _IQ7log(A)          log(A)
+#define   _IQ6log(A)          log(A)
+#define   _IQ5log(A)          log(A)
+#define   _IQ4log(A)          log(A)
+#define   _IQ3log(A)          log(A)
+#define   _IQ2log(A)          log(A)
+#define   _IQ1log(A)          log(A)
 //###########################################################################
 #endif  // No more.
 //###########################################################################

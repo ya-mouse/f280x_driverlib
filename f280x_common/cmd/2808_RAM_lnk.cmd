@@ -126,6 +126,7 @@ SECTIONS
 
    IQmath           : >  PRAMH0,   PAGE = 0
    IQmathTables     : >  BOOTROM, type = NOLOAD, PAGE = 0
+   IQmathTablesRam  : >  PRAMH0,   PAGE = 0
 
      
 }
