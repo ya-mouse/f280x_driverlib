@@ -242,6 +242,11 @@
 			<locationURI>INSTALLROOT_F280x_V170/f280x_common/source/sci.c</locationURI>
 		</link>
 		<link>
+			<name>spi.c</name>
+			<type>1</type>
+			<locationURI>INSTALLROOT_F280x_V170/f280x_common/source/spi.c</locationURI>
+		</link>
+		<link>
 			<name>timer.c</name>
 			<type>1</type>
 			<locationURI>INSTALLROOT_F280x_V170/f280x_common/source/timer.c</locationURI>
